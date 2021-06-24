@@ -1,2 +1,2 @@
 # gadget4-tools
-Simple IC creation and snapshot reading
+Simple examples of IC creation and snapshot reading/interpretation
