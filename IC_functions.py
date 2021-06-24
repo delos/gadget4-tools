@@ -24,19 +24,22 @@ def make_field(pkfun,BoxSize,GridSize):
   
   '''
   
-  # first make unit random noise
+  # first make unit random noise and Fourier transform it
   delta = np.random.normal(size=(GridSize,GridSize,GridSize))
   delta -= delta.mean()
   delta /= np.sqrt(np.mean(delta**2))
-  deltak = fftn(delta,overwrite_x=True)/GridSize**1.5
+  deltak = fftn(delta,overwrite_x=True)
   
   # get wavenumbers associated with k-space grid
   dk = 2*np.pi/BoxSize
   k = ((np.indices(deltak.shape)+GridSize//2)%GridSize-GridSize//2) * dk
   k_mag = np.sqrt(np.sum(k**2,axis=0))
+
+  # don't try to evaluate pkfun at k=0 (might be out of bounds)
+  pkfun_ = lambda k: np.piecewise(k,[k>0],[pkfun,lambda k: 0])
                   
   # scale random noise by power spectrum
-  deltak *= np.sqrt(pkfun(k_mag)*GridSize**6/BoxSize**3)
+  deltak *= np.sqrt(pkfun_(k_mag)*GridSize**3/BoxSize**3)
   
   '''
   
@@ -64,8 +67,8 @@ def field_to_particles(delta,BoxSize,HubbleRate):
     
   Returns:
     
-    pos, vel: arrays of shape (3,GridSize**3) representing the 3D positions and
-    velocities ofGridSize**3 particles. Velocities are peculiar velocities.
+    pos, vel: arrays of shape (3,GridSize**3) representing the 3D comoving positions and
+    velocities of GridSize**3 particles.
   
   '''
   
@@ -73,20 +76,24 @@ def field_to_particles(delta,BoxSize,HubbleRate):
   dk = 2*np.pi/BoxSize
   dx = BoxSize/GridSize
   
-  # first get grid in k-space
+  # Fourier transform field
   deltak = fftn(delta,overwrite_x=True)
+
+  # get wavenumbers associated with each k-space grid cell
   k = ((np.indices(deltak.shape)+GridSize//2)%GridSize-GridSize//2) * dk
   k2 = np.sum(k**2,axis=0)
   
-  # get displacement from delta
-  # displacement = i (k/k^2) delta if the displacement is irrotational
+  # get displacement from delta: delta = -i k displacement, so
+  # displacement = i (k/k^2) delta if the displacement field is irrotational (zero curl)
   dispk = 1j * k * deltak[None,:,:,:] / k2[None,:,:,:]
   dispk[:,0,0,0] = 0.
   disp = np.real(ifftn(dispk,axes=(1,2,3),overwrite_x=True))
   
-  # make positions and velocities
+  # make positions by displacing from grid
   pos = disp + (np.indices(deltak.shape)+0.5)*dx
-  vel = disp * HubbleRate
+
+  # use Zel'dovich approximation for velocities
+  vel = disp * HubbleRate # comoving velocity
   
   # keep particles inside box, shouldn't be an issue if delta<1 though
   pos[pos < 0] += BoxSize
@@ -109,9 +116,9 @@ def particles_to_gadget_comoving_periodic(filename,pos,vel,BoxSize,ScaleFactor,H
     
     filename: output file name
     
-    pos: 3D positions, shape (3,NP) where NP is the number of particles
+    pos: comoving 3D positions, shape (3,NP) where NP is the number of particles
     
-    vel: 3D velocities, shape (3,NP)
+    vel: comoving 3D velocities, shape (3,NP)
     
     BoxSize: physical size of the periodic box
     
@@ -145,10 +152,10 @@ def particles_to_gadget_comoving_periodic(filename,pos,vel,BoxSize,ScaleFactor,H
     header.attrs['BoxSize'] = np.array(BoxSize,dtype=np.float64) # or this
     header.attrs['NumFilesPerSnapshot'] = np.array(1,dtype=np.int32)
     
-    particles = f.create_group('ParticleType1') # type 0 is reserved for gas
-    coodinates = particles.create_dataset('Coordinates', data=(pos.T.flatten()).astype(np.float32))
+    particles = f.create_group('PartType1') # type 0 is reserved for gas
+    coodinates = particles.create_dataset('Coordinates', data=(pos.T).astype(np.float32))
     velocities = particles.create_dataset('Velocities', # sqrt(a) is GADGET convention
-                                          data=((vel/np.sqrt(ScaleFactor)).T.flatten()).astype(np.float32))
+                                          data=((vel*np.sqrt(ScaleFactor)).T).astype(np.float32))
     ids = particles.create_dataset('ParticleIDs', data=np.arange(NP,dtype=np.uint32))
 
 def power_to_gadget(filename,pkfun,BoxSize,GridSize,ScaleFactor,H0=0.06774,OmegaM=0.3089,G=4.3022682e-6):
@@ -186,10 +193,13 @@ def power_to_gadget(filename,pkfun,BoxSize,GridSize,ScaleFactor,H0=0.06774,Omega
   
   # get density field
   delta = make_field(pkfun,BoxSize,GridSize)
+
+  # print sigma
+  print('sigma = %g'%(np.mean(delta**2)**.5))
   
   # get particles
   # we could optimize by not transforming delta into position space at all
-  pos,vel = field_to_particles(delta,BoxSize,GridSize,HubbleRate)
+  pos,vel = field_to_particles(delta,BoxSize,HubbleRate)
   
   particles_to_gadget_comoving_periodic(filename,pos,vel,BoxSize,ScaleFactor,H0,OmegaM,G)
 
@@ -207,6 +217,7 @@ def particles_to_gadget_massrange(filename,pos,vel,mass):
     
     vel: 3D velocities, shape (3,NP)
     If using comoving integration, these should be (peculiar velocity)/sqrt(a)
+    or (comoving velocity)*sqrt(a)
     
     mass: particle masses, shape (NP)
     If using comoving periodic integration, masses must add up to average mass
@@ -228,8 +239,8 @@ def particles_to_gadget_massrange(filename,pos,vel,mass):
     header.attrs['BoxSize'] = np.array(0,dtype=np.float64) # doesn't matter
     header.attrs['NumFilesPerSnapshot'] = np.array(1,dtype=np.int32)
     
-    particles = f.create_group('ParticleType1') # type 0 is reserved for gas
-    coodinates = particles.create_dataset('Coordinates', data=(pos.T.flatten()).astype(np.float32))
-    velocities = particles.create_dataset('Velocities', data=(vel.T.flatten()).astype(np.float32))
+    particles = f.create_group('PartType1') # type 0 is reserved for gas
+    coodinates = particles.create_dataset('Coordinates', data=(pos.T).astype(np.float32))
+    velocities = particles.create_dataset('Velocities', data=(vel.T).astype(np.float32))
     ids = particles.create_dataset('ParticleIDs', data=np.arange(NP,dtype=np.uint32))
     mass = particles.create_dataset('Masses', data=mass.astype(np.float32))

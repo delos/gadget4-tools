@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from IC_functions import gadget_to_particles_DMO, cic_bin
+from snapshot_functions import gadget_to_particles_DMO, cic_bin
 
 def run(argv):
   
@@ -21,8 +21,14 @@ def run(argv):
   BoxSize = header['BoxSize']
   
   delta, bins = cic_bin(pos,BoxSize,GridSize,weights=mass,density=True)
-  
+
+  delta /= delta.mean()
+  delta -= 1
+
+  delta = np.mean(delta,axis=axis) # project
+
   if log:
+    delta[delta==0] = np.nan
     delta = np.log10(1+delta)
   
   fig, ax = plt.subplots(figsize=(12.9, 10))
@@ -30,8 +36,8 @@ def run(argv):
   pcm = ax.pcolormesh(bins,bins,delta,cmap=cmap)
   cbar = fig.colorbar(pcm, ax=ax)
   ax.set_aspect('equal', 'datalim')
-  ax.set_xlim(0,ncell)
-  ax.set_ylim(0,ncell)
+  ax.set_xlim(bins[0],bins[-1])
+  ax.set_ylim(bins[0],bins[-1])
   ax.patch.set_facecolor('k')
   
   plt.show()

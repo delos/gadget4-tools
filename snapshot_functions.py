@@ -1,5 +1,6 @@
 import numpy as np
 from scipy.fft import fftn,ifftn,fftshift
+import h5py
 
 def gadget_to_particles_DMO(filename):
   
@@ -13,9 +14,9 @@ def gadget_to_particles_DMO(filename):
     
   Returns:
     
-    pos: position array, shape (3,NP)
+    pos: position array, shape (3,NP), comoving
     
-    vel: velocity array, shape (3,NP)
+    vel: velocity array, shape (3,NP), peculiar
     
     mass: mass array, shape (NP)
     
@@ -29,11 +30,12 @@ def gadget_to_particles_DMO(filename):
     
     MassTable = header['MassTable']
     ScaleFactor = 1./(1+header['Redshift'])
+    NP = header['NumPart_ThisFile'][1]
     
-    pos = f['ParticleType1/Coordinates'].reshape((NP,3)).T
-    vel = f['ParticleType1/Velocities'].reshape((NP,3)).T * np.sqrt(ScaleFactor)
+    pos = np.array(f['PartType1/Coordinates']).reshape((NP,3)).T
+    vel = np.array(f['PartType1/Velocities']).reshape((NP,3)).T * np.sqrt(ScaleFactor)
     if MassTable[1] == 0.:
-      mass = f['ParticleType1/Masses']
+      mass = np.array(f['PartType1/Masses'])
     else:
       mass = np.full(NP,MassTable[1])
     

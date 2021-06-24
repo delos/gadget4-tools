@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from IC_functions import gadget_to_particles_DMO, cic_bin, power_spectrum
+from snapshot_functions import gadget_to_particles_DMO, cic_bin, power_spectrum
 
 def run(argv):
   
@@ -15,6 +15,9 @@ def run(argv):
   BoxSize = header['BoxSize']
   
   delta, bins = cic_bin(pos,BoxSize,GridSize,weights=mass,density=True)
+
+  delta /= delta.mean()
+  delta -= 1
   
   k,P = power_spectrum(delta,BoxSize)
   

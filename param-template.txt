@@ -1,0 +1,129 @@
+% template parameter file
+
+%---- Filenames and file formats
+OutputDir                ./output
+SnapshotFileBase         snapshot
+SnapFormat               3           % HDF5
+ICFormat                 3           % HDF5
+InitCondFile             ./init      % .hdf5 will be appended
+NumFilesPerSnapshot      1
+MaxFilesWithConcurrentIO 8
+
+%---- CPU-time limit and restarts
+TimeLimitCPU             86100.0     % one day, minus a few minutes
+CpuTimeBetRestartFile    7200        % two hours
+%FlushCpuTimeDiff         120
+
+%---- Memory allocation
+MaxMemSize               2000        % MB per CPU
+
+%---- Simulated time span and spatial extent
+TimeBegin                0.01        % scale factor for comoving integration
+TimeMax                  1.0
+ComovingIntegrationOn    1
+BoxSize                  10000.0     % kpc/h
+
+%---- Cosmological parameters
+Omega0                   0.3089
+OmegaLambda              0.6911
+OmegaBaryon              0.04
+HubbleParam              0.6774      % only relevant for gas physics
+Hubble                   0.1         % h km/s/kpc
+
+%---- System of units
+UnitLength_in_cm         3.085678e21 % in cm/h, corresponding to 1 kpc/h
+UnitMass_in_g            1.989e33    % in g/h, corresponding to 1 Msun/h
+UnitVelocity_in_cm_per_s 1.0e5       % 1 km/s
+GravityConstantInternal  0
+
+%---- Gravitational force accuracy
+TypeOfOpeningCriterion   1
+ErrTolTheta              0.7
+ErrTolForceAcc           0.005
+ErrTolThetaMax           1.0
+%ActivePartFracForPMinsteadOfEwald 0.1    % only if compiled with TREEPM_NOTIMESPLIT
+
+%---- Time integration accuracy
+MaxSizeTimestep          0.01        % step in ln(a) for comoving integration
+MinSizeTimestep          0
+ErrTolIntAccuracy        0.025
+CourantFac               0.15        % hydrodynamics only
+
+%---- Domain decomposition
+ActivePartFracForNewDomainDecomp 0.01
+TopNodeFactor            2.5
+
+%---- Output frequency
+OutputListOn             0
+OutputListFilename       outputs.txt
+TimeOfFirstSnapshot      0.01        % scale factor for comoving integration
+TimeBetSnapshot          1.07177346  % factor in a for comoving integration; 10 snapshots = factor of 2
+TimeBetStatistics        0.1
+
+%---- SPH parameters
+DesNumNgb                64
+MaxNumNgbDeviation       2
+InitGasTemp              10000
+ArtBulkViscConst         1.0
+%ViscosityAlphaMin        0
+
+%---- Gravitational softening
+SofteningClassOfPartType0     0      % gas
+SofteningClassOfPartType1     1
+SofteningClassOfPartType2     2
+SofteningClassOfPartType3     3
+SofteningClassOfPartType4     4
+SofteningClassOfPartType5     5
+SofteningComovingClass0       0.5    % also the physical softening for physical integrations
+SofteningComovingClass1       0.5
+SofteningComovingClass2       0.5
+SofteningComovingClass3       0.5
+SofteningComovingClass4       0.5
+SofteningComovingClass5       0.5
+SofteningMaxPhysClass0        0.5    % ignored for physical integrations
+SofteningMaxPhysClass1        0.5
+SofteningMaxPhysClass2        0.5
+SofteningMaxPhysClass3        0.5
+SofteningMaxPhysClass4        0.5
+SofteningMaxPhysClass5        0.5
+%GasSoftFactor                 1.5
+%MinimumComovingHydroSoftening 0.001
+%AdaptiveHydroSofteningSpacing 1.05
+
+%---- Subfind parameters (only if compiled with SUBFIND)
+%DesLinkNgb               20
+
+%---- Initial conditions generation (only if compiled with NGENIC)
+%NSample                  128
+%GridSize                 128
+%PowerSpectrumType        2
+%PowerSpectrumFile        power.txt
+%InputSpectrum_UnitLength_in_cm 3.085678e24     % 1 Mpc/h
+%ShapeGamma               0.21
+%PrimordialIndex          1.0
+%Sigma8                   0.86
+%ReNormalizeInputSpectrum 1
+%SphereMode               0
+%Seed                     123456
+
+%---- Lightcone output (only if compiled with LIGHTCONE)
+%LightConeDefinitionFile     lightcones.txt
+%LightConeMassMapsNside      12
+%LightConeMassMapThickness   25
+%LightConeMassMapMaxRedshift 5.0
+
+%---- Cooling and star formation
+%MaxSfrTimescale          1.5
+%TempClouds               1000.0
+%TempSupernova            1.0e8
+%FactorEVP                1000.0
+%FactorSN                 0.1
+%CritPhysDensity          0 
+%CritOverDensity          57.7
+%TreecoolFile             data/TREECOOL_fg_dec11
+MinEgySpec               0
+
+%---- Special features
+%A_StaticHQHalo           5.0     % only if compiled with EXTERNALGRAVITY_STATICHQ
+%Mass_StaticHQHalo        100.0   % only if compiled with EXTERNALGRAVITY_STATICHQ
+
