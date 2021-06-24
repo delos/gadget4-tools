@@ -220,8 +220,8 @@ def particles_to_gadget_massrange(filename,pos,vel,mass):
     or (comoving velocity)*sqrt(a)
     
     mass: particle masses, shape (NP)
-    If using comoving periodic integration, masses must add up to average mass
-    within box.
+    If using comoving periodic integration, masses must add up to 
+    matter density * (box size)^3
   
   '''
   

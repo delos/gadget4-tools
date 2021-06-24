@@ -10,12 +10,9 @@ def run(argv):
   
   num_halos = int(argv[3])
 
-  # read particles
+  # read particles and halos
   pos, _, mass, header = gadget_to_particles_DMO(argv[1])
-  
   BoxSize = header['BoxSize']
-
-  # read halos
   hpos, _, hmass = fof_to_halos(argv[2])
 
   # sort halos, highest mass first
@@ -27,10 +24,7 @@ def run(argv):
 
   # cycle over halos
   for i in range(min(num_halos,len(hmass))):
-    # get density profile
     r,rho = density_profile(pos-hpos[:,i:i+1],mass,BoxSize=BoxSize)
-
-    # plot
     ax.loglog(r,rho)
 
   ax.set_xlabel(r'$r (kpc/h)$')

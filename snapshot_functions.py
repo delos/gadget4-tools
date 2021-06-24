@@ -192,13 +192,15 @@ def density_profile(pos,mass,bins=None,BoxSize=None):
   
   '''
   
-  Bin particles into a density field using cloud-in-cell method
+  Spherically averaged density profile centered at position (0,0,0)
   
   Parameters:
     
     pos: 3D positions relative to center, shape (3,NP) where NP is the number of particles
 
     mass: masses of particles, shape (NP)
+
+    bins: radial bin edges
     
     BoxSize: size of periodic region (None if not periodic)
     
