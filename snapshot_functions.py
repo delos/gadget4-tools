@@ -41,6 +41,38 @@ def gadget_to_particles_DMO(filename):
     
     return pos, vel, mass, header
 
+def fof_to_halos(filename):
+
+  '''
+  
+  Read halos from GADGET HDF5 FOF file.
+  
+  Parameters:
+    
+    filename: input file name
+    
+  Returns:
+    
+    pos: position array, shape (3,NH), comoving
+    
+    vel: velocity array, shape (3,NH), peculiar
+    
+    mass: mass array, shape (NH)
+    
+  '''
+
+  with h5py.File(filename, 'r') as f:
+
+    header = dict(f['Header'].attrs)
+
+    ScaleFactor = 1./(1+header['Redshift'])
+
+    pos = np.array(f['Group/GroupPos']).T
+    vel = np.array(f['Group/GroupVel']).T * np.sqrt(ScaleFactor)
+    mass = np.array(f['Group/GroupMass'])
+
+    return pos, vel, mass
+
 def cic_bin(x,BoxSize,GridSize,weights=1,density=True):
   
   '''
@@ -154,3 +186,46 @@ def power_spectrum(delta,BoxSize,bins=None):
   hist_k,_ = np.histogram(k_mag,bins=bins,weights=k_mag)
   
   return hist_k/hist_ct, hist_pk/hist_ct
+
+
+def density_profile(pos,mass,bins=None,BoxSize=None):
+  
+  '''
+  
+  Bin particles into a density field using cloud-in-cell method
+  
+  Parameters:
+    
+    pos: 3D positions relative to center, shape (3,NP) where NP is the number of particles
+
+    mass: masses of particles, shape (NP)
+    
+    BoxSize: size of periodic region (None if not periodic)
+    
+  Returns:
+    
+    radius, density
+
+  
+  '''
+  
+  NP = pos.shape[1]
+
+  # shift periodic box
+  if BoxSize is not None:
+    pos[pos >= 0.5*BoxSize] -= BoxSize
+    pos[pos < -0.5*BoxSize] -= BoxSize
+
+  # radii
+  r = np.sqrt(np.sum(pos**2,axis=0))
+
+  # radial bins
+  if bins is None:
+    rmin = np.sort(r)[100]/10
+    rmax = np.max(r)
+    bins = np.geomspace(rmin,rmax,50)
+  bin_volume = 4./3 * np.pi * (bins[1:]**3 - bins[:-1]**3)
+  
+  hist_mass,_ = np.histogram(r,bins=bins,weights=mass)
+
+  return 0.5*(bins[1:]+bins[:-1]), hist_mass / bin_volume
