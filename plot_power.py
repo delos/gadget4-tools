@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from snapshot_functions import gadget_to_particles_DMO, cic_bin, power_spectrum
+from snapshot_functions import gadget_to_particles, cic_bin, power_spectrum
 
 def run(argv):
   
@@ -10,7 +10,7 @@ def run(argv):
   
   GridSize = int(argv[2])
   
-  pos, vel, mass, header = gadget_to_particles_DMO(argv[1])
+  pos, vel, mass, header = gadget_to_particles(argv[1])
   
   BoxSize = header['BoxSize']
   
@@ -25,7 +25,7 @@ def run(argv):
   
   ax.loglog(k,k**3/(2*np.pi**2)*P)
   ax.set_xlim(k[0],k[-1])
-  ax.set_xlabel(r'$k (h/kpc)$')
+  ax.set_xlabel(r'$k$ ($h$/kpc)')
   ax.set_ylabel(r'dimensionless $\mathcal{P}(k)$')
   
   plt.show()

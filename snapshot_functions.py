@@ -1,16 +1,17 @@
 import numpy as np
 from scipy.fft import fftn,ifftn,fftshift
 import h5py
+from pathlib import Path
 
-def gadget_to_particles_DMO(filename):
-  
+def gadget_to_particles(fileprefix):
+
   '''
   
-  Read particles from GADGET HDF5 snapshot. Only reads particles of type 1 ("halo").
+  Read particles from GADGET HDF5 snapshot.
   
   Parameters:
     
-    filename: input file name
+    fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
     
   Returns:
     
@@ -20,28 +21,74 @@ def gadget_to_particles_DMO(filename):
     
     mass: mass array, shape (NP)
     
-    header: a dict with header info, use list(parameters) to see the fields
+    header: a dict with header info, use list(header) to see the fields
   
   '''
-  
-  with h5py.File(filename, 'r') as f:
-    
-    header = dict(f['Header'].attrs)
-    
-    MassTable = header['MassTable']
-    ScaleFactor = 1./(1+header['Redshift'])
-    NP = header['NumPart_ThisFile'][1]
-    
-    pos = np.array(f['PartType1/Coordinates']).reshape((NP,3)).T
-    vel = np.array(f['PartType1/Velocities']).reshape((NP,3)).T * np.sqrt(ScaleFactor)
-    if MassTable[1] == 0.:
-      mass = np.array(f['PartType1/Masses'])
-    else:
-      mass = np.full(NP,MassTable[1])
-    
-    return pos, vel, mass, header
 
-def fof_to_halos(filename):
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  fileinst = 0
+  pinst = 0
+  while True:
+    if fileinst >= numfiles:
+      break
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      MassTable = header['MassTable']
+      ScaleFactor = 1./(1+header['Redshift'])
+      NP = header['NumPart_ThisFile']
+      NPtot = header['NumPart_Total']
+      numfiles = header['NumFilesPerSnapshot']
+
+      if fileinst == 0:
+        pos = np.zeros((3,np.sum(NPtot)))
+        vel = np.zeros((3,np.sum(NPtot)))
+        mass = np.zeros(np.sum(NPtot))
+
+      for typ in range(len(NPtot)):
+        NPtyp = int(NP[typ])
+        if NPtyp == 0:
+          continue
+
+        pos[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Coordinates'%typ]).T
+        vel[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Velocities'%typ]).T * np.sqrt(ScaleFactor)
+
+        if MassTable[typ] == 0.:
+          mass[pinst:pinst+NPtyp] = np.array(f['PartType%d/Masses'%typ])
+        else:
+          mass[pinst:pinst+NPtyp] = np.full(NPtyp,MassTable[typ])
+
+        pinst += NPtyp
+
+    fileinst += 1
+    
+  return pos, vel, mass, header
+
+def fof_to_halos(fileprefix):
 
   '''
   
@@ -49,7 +96,7 @@ def fof_to_halos(filename):
   
   Parameters:
     
-    filename: input file name
+    fileprefix: input file prefix (e.g., fof_tab_000, not fof_tab_000.0.hdf5)
     
   Returns:
     
@@ -58,20 +105,57 @@ def fof_to_halos(filename):
     vel: velocity array, shape (3,NH), peculiar
     
     mass: mass array, shape (NH)
+
+    header: a dict with header info, use list(header) to see the fields
     
   '''
 
-  with h5py.File(filename, 'r') as f:
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
 
-    header = dict(f['Header'].attrs)
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
 
-    ScaleFactor = 1./(1+header['Redshift'])
+  fileinst = 0
+  pinst = 0
+  pos = []
+  vel = []
+  mass = []
+  while True:
+    if fileinst >= numfiles:
+      break
 
-    pos = np.array(f['Group/GroupPos']).T
-    vel = np.array(f['Group/GroupVel']).T * np.sqrt(ScaleFactor)
-    mass = np.array(f['Group/GroupMass'])
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
 
-    return pos, vel, mass
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      ScaleFactor = 1./(1+header['Redshift'])
+      numfiles = header['NumFiles']
+
+      pos += [np.array(f['Group/GroupPos']).T]
+      vel += [np.array(f['Group/GroupVel']).T * np.sqrt(ScaleFactor)]
+      mass += [np.array(f['Group/GroupMass'])]
+
+    fileinst += 1
+
+  return np.concatenate(pos,axis=1), np.concatenate(vel,axis=1), np.concatenate(mass), header
 
 def cic_bin(x,BoxSize,GridSize,weights=1,density=True):
   

@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from snapshot_functions import gadget_to_particles_DMO, density_profile, fof_to_halos
+from snapshot_functions import gadget_to_particles, density_profile, fof_to_halos
 
 def run(argv):
   
@@ -11,9 +11,9 @@ def run(argv):
   num_halos = int(argv[3])
 
   # read particles and halos
-  pos, _, mass, header = gadget_to_particles_DMO(argv[1])
+  pos, _, mass, header = gadget_to_particles(argv[1])
   BoxSize = header['BoxSize']
-  hpos, _, hmass = fof_to_halos(argv[2])
+  hpos, _, hmass, _ = fof_to_halos(argv[2])
 
   # sort halos, highest mass first
   sort = np.argsort(hmass)[::-1]
@@ -27,7 +27,7 @@ def run(argv):
     r,rho = density_profile(pos-hpos[:,i:i+1],mass,BoxSize=BoxSize)
     ax.loglog(r,rho)
 
-  ax.set_xlabel(r'$r (kpc/h)$')
+  ax.set_xlabel(r'$r$ (kpc/$h$)')
   ax.set_ylabel(r'$\rho$ ($h^2$ $M_\odot$/kpc$^3$)')
   
   plt.show()

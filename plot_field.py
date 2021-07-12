@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-from snapshot_functions import gadget_to_particles_DMO, cic_bin
+from snapshot_functions import gadget_to_particles, cic_bin
 
 def run(argv):
   
@@ -15,8 +15,8 @@ def run(argv):
   else: axis = 2
   if len(argv) > 4: log = int(argv[4])
   else: log = 1
-  
-  pos, vel, mass, header = gadget_to_particles_DMO(argv[1])
+
+  pos, vel, mass, header = gadget_to_particles(argv[1])
   
   BoxSize = header['BoxSize']
   
