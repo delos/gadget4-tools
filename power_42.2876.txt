@@ -1,5 +1,5 @@
 # redshift z = 42.2876
-# computed with CAMB for Planck cosmological parameters
+# computed with CLASS for Planck cosmological parameters
 # Columns:
 # k (1/Mpc), CDM k^3/(2pi^2) P(k), baryon k^3/(2pi^2) P(k), matter k^3/(2pi^2) P(k)
 7.057030823388510346e-06 2.254639961399394290e-18 2.254639883315104226e-18 2.284424072258220428e-18
