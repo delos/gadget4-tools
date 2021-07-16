@@ -3,7 +3,11 @@ from scipy.fft import fftn,ifftn,fftshift
 import h5py
 from pathlib import Path
 
-def gadget_to_particles(fileprefix):
+fileprefix_subhalo = 'groups_%03d/fof_subhalo_tab_%03d'
+fileprefix_subhalo_desc = 'groups_%03d/subhalo_desc_%03d'
+fileprefix_subhalo_prog = 'groups_%03d/subhalo_prog_%03d'
+
+def gadget_to_particles(fileprefix, opts={'pos':True,'vel':True,'ID':False,'mass':True}):
 
   '''
   
@@ -12,14 +16,18 @@ def gadget_to_particles(fileprefix):
   Parameters:
     
     fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
+
+    opts: which fields to read and return
     
   Returns:
     
     pos: position array, shape (3,NP), comoving
     
     vel: velocity array, shape (3,NP), peculiar
+
+    ID: ID array, shape (NP,)
     
-    mass: mass array, shape (NP)
+    mass: mass array, shape (NP,)
     
     header: a dict with header info, use list(header) to see the fields
   
@@ -44,9 +52,7 @@ def gadget_to_particles(fileprefix):
 
   fileinst = 0
   pinst = 0
-  while True:
-    if fileinst >= numfiles:
-      break
+  while fileinst < numfiles:
 
     if numfiles == 1:
       filename = filebase
@@ -65,30 +71,42 @@ def gadget_to_particles(fileprefix):
       numfiles = header['NumFilesPerSnapshot']
 
       if fileinst == 0:
-        pos = np.zeros((3,np.sum(NPtot)))
-        vel = np.zeros((3,np.sum(NPtot)))
-        mass = np.zeros(np.sum(NPtot))
-
+        # allocate full-sized memory blocks in advance, for efficiency
+        if opts['pos']: pos = np.zeros((3,np.sum(NPtot)),dtype=np.float32)
+        if opts['vel']: vel = np.zeros((3,np.sum(NPtot)),dtype=np.float32)
+        if opts['mass']: mass = np.zeros(np.sum(NPtot),dtype=np.float32)
+        if opts['ID']: ID = np.zeros(np.sum(NPtot),dtype=np.uint32)
+ 
       for typ in range(len(NPtot)):
         NPtyp = int(NP[typ])
         if NPtyp == 0:
           continue
 
-        pos[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Coordinates'%typ]).T
-        vel[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Velocities'%typ]).T * np.sqrt(ScaleFactor)
+        if opts['pos']: pos[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Coordinates'%typ]).T
+        if opts['vel']: vel[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Velocities'%typ]).T * np.sqrt(ScaleFactor)
 
-        if MassTable[typ] == 0.:
-          mass[pinst:pinst+NPtyp] = np.array(f['PartType%d/Masses'%typ])
-        else:
-          mass[pinst:pinst+NPtyp] = np.full(NPtyp,MassTable[typ])
+        if opts['mass']:
+          if MassTable[typ] == 0.:
+            mass[pinst:pinst+NPtyp] = np.array(f['PartType%d/Masses'%typ])
+          else:
+            mass[pinst:pinst+NPtyp] = np.full(NPtyp,MassTable[typ])
+
+        if opts['ID']: ID[pinst:pinst+NPtyp] = np.array(f['PartType%d/ParticleIDs'%typ])
 
         pinst += NPtyp
 
     fileinst += 1
-    
-  return pos, vel, mass, header
 
-def fof_to_halos(fileprefix):
+  ret = []
+  if opts['pos']: ret += [pos]
+  if opts['vel']: ret += [vel]
+  if opts['mass']: ret += [mass]
+  if opts['ID']: ret += [ID]
+  ret += [header]
+
+  return tuple(ret)
+
+def fof_to_halos(fileprefix,opts={'pos':True,'vel':True,'mass':True}):
 
   '''
   
@@ -97,6 +115,8 @@ def fof_to_halos(fileprefix):
   Parameters:
     
     fileprefix: input file prefix (e.g., fof_tab_000, not fof_tab_000.0.hdf5)
+
+    opts: which fields to read and return
     
   Returns:
     
@@ -104,7 +124,7 @@ def fof_to_halos(fileprefix):
     
     vel: velocity array, shape (3,NH), peculiar
     
-    mass: mass array, shape (NH)
+    mass: mass array, shape (NH,)
 
     header: a dict with header info, use list(header) to see the fields
     
@@ -128,13 +148,10 @@ def fof_to_halos(fileprefix):
     numfiles = 1
 
   fileinst = 0
-  pinst = 0
-  pos = []
-  vel = []
-  mass = []
-  while True:
-    if fileinst >= numfiles:
-      break
+  if opts['pos']: pos = []
+  if opts['vel']: vel = []
+  if opts['mass']: mass = []
+  while fileinst < numfiles:
 
     if numfiles == 1:
       filename = filebase
@@ -149,13 +166,26 @@ def fof_to_halos(fileprefix):
       ScaleFactor = 1./(1+header['Redshift'])
       numfiles = header['NumFiles']
 
-      pos += [np.array(f['Group/GroupPos']).T]
-      vel += [np.array(f['Group/GroupVel']).T * np.sqrt(ScaleFactor)]
-      mass += [np.array(f['Group/GroupMass'])]
+      if header['Ngroups_Total'] == 0:
+        if opts['pos']: pos = [[]]
+        if opts['vel']: vel = [[]]
+        if opts['mass']: mass = [[]]
+        break
+ 
+      if header['Ngroups_ThisFile'] > 0:
+        if opts['pos']: pos += [np.array(f['Group/GroupPos']).T]
+        if opts['vel']: vel += [np.array(f['Group/GroupVel']).T * np.sqrt(ScaleFactor)]
+        if opts['mass']: mass += [np.array(f['Group/GroupMass'])]
 
     fileinst += 1
 
-  return np.concatenate(pos,axis=1), np.concatenate(vel,axis=1), np.concatenate(mass), header
+  ret = []
+  if opts['pos']: ret += [np.concatenate(pos,axis=1)]
+  if opts['vel']: ret += [np.concatenate(vel,axis=1)]
+  if opts['mass']: ret += [np.concatenate(mass)]
+  ret += [header]
+
+  return tuple(ret)
 
 def cic_bin(x,BoxSize,GridSize,weights=1,density=True):
   
@@ -271,7 +301,6 @@ def power_spectrum(delta,BoxSize,bins=None):
   
   return hist_k/hist_ct, hist_pk/hist_ct
 
-
 def density_profile(pos,mass,bins=None,BoxSize=None):
   
   '''
@@ -315,3 +344,378 @@ def density_profile(pos,mass,bins=None,BoxSize=None):
   hist_mass,_ = np.histogram(r,bins=bins,weights=mass)
 
   return 0.5*(bins[1:]+bins[:-1]), hist_mass / bin_volume
+
+def subhalo_tracing_data(snapshot_number,subhalo_number):
+
+  '''
+  
+  Get a subhalo's mass, position, velocity, progenitor, descendant,
+  and other tracking information.
+  
+  Parameters:
+    
+    snapshot_number
+
+    subhalo_number
+    
+  Returns:
+    
+    prog: best-scoring progenitor
+
+    desc: best-scoring descendant
+
+    pos: subhalo (comoving) position, shape (3,)
+
+    vel: subhalo (peculiar) velocity, shape (3,)
+
+    mass: subhalo mass
+ 
+    ID: dict with group ID, subhalo ID, and most bound particle ID
+  
+    header: a dict with header info, use list(header) to see the fields
+    
+  '''
+
+  prefix_sub = fileprefix_subhalo%(snapshot_number,snapshot_number)
+  prefix_desc = fileprefix_subhalo_desc%(snapshot_number,snapshot_number)
+  prefix_prog = fileprefix_subhalo_prog%(snapshot_number,snapshot_number)
+
+  filepath = [
+    Path(prefix_sub + '.hdf5'),
+    Path(prefix_sub + '.0.hdf5'),
+    ]
+
+  if filepath[0].is_file():
+    filebase_sub = prefix_sub + '.hdf5'
+    filebase_desc = prefix_desc + '.hdf5'
+    filebase_prog = prefix_prog + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase_sub = prefix_sub + '.%d.hdf5'
+    filebase_desc = prefix_desc + '.%d.hdf5'
+    filebase_prog = prefix_prog + '.%d.hdf5'
+    numfiles = 2
+  
+  prog, desc, pos, vel, mass, ID, header = -1, -1, np.zeros(3), np.zeros(3), 0., {}, {}
+
+  fileinst = 0
+  hinst = 0
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename_sub = filebase_sub
+      filename_desc = filebase_desc
+      filename_prog = filebase_prog
+    else:
+      filename_sub = filebase_sub%fileinst
+      filename_desc = filebase_desc%fileinst
+      filename_prog = filebase_prog%fileinst
+
+    with h5py.File(filename_sub, 'r') as f:
+      print('reading %s'%filename_sub)
+
+      header = dict(f['Header'].attrs)
+
+      ScaleFactor = 1./(1+header['Redshift'])
+      numfiles = header['NumFiles']
+
+      if hinst + header['Nsubhalos_ThisFile'] > subhalo_number:
+        index = subhalo_number - hinst
+
+        pos = np.array(f['Subhalo/SubhaloPos'])[index]
+        vel = np.array(f['Subhalo/SubhaloVel'])[index] * np.sqrt(ScaleFactor)
+        mass = np.array(f['Subhalo/SubhaloMass'])[index]
+        ID = {'group':np.array(f['Subhalo/SubhaloGroupNr'])[index],
+          'subhalo':subhalo_number,
+          'particle':np.array(f['Subhalo/SubhaloIDMostbound'])[index]}
+
+        try:
+          with h5py.File(filename_desc, 'r') as fd:
+            print('reading %s'%filename_desc)
+            if np.array(fd['Subhalo/SubhaloNr'])[index] != subhalo_number:
+              raise Exception('halo number mismatch, %d != %d'%(np.array(fd['Subhalo/SubhaloNr'])[index],subhalo_number))
+            desc = np.array(fd['Subhalo/DescSubhaloNr'])[index]
+        except Exception as e:
+          print(str(e))
+          desc = -1
+
+        try:
+          with h5py.File(filename_prog, 'r') as fp:
+            print('reading %s'%filename_prog)
+            if np.array(fp['Subhalo/SubhaloNr'])[index] != subhalo_number:
+              raise Exception('halo number mismatch, %d != %d'%(np.array(fp['Subhalo/SubhaloNr'])[index],subhalo_number))
+            prog = np.array(fp['Subhalo/ProgSubhaloNr'])[index]
+        except Exception as e:
+          print(str(e))
+          prog = -1
+
+        break
+
+      hinst += int(header['Nsubhalos_ThisFile'])
+
+    fileinst += 1
+  else:
+    print('Warning: halo %d not found'%subhalo_number)
+
+  return prog, desc, pos, vel, mass, ID, header
+
+def trace_subhalo(snapshot_number,subhalo_number):
+
+  '''
+  
+  Trace a subhalo's position, mass, and other tracking information across snapshots.
+  
+  Parameters:
+    
+    snapshot_number
+
+    subhalo_number
+    
+  Returns:
+    
+    num: snapshot number
+
+    time: scale factor array, shape (NT,)
+
+    pos: position array, shape (NT,3), comoving
+    
+    vel: velocity array, shape (NT,3), peculiar
+    
+    mass: mass array, shape (NT,)
+
+    group: host group, shape (NT,)
+
+    ID: list of dicts with group ID, subhalo ID, and most bound particle ID; shape (NT,)
+    
+  '''
+
+  prog, desc, pos_, vel_, mass_, ID_, header_ = subhalo_tracing_data(snapshot_number,subhalo_number)
+
+  print('halo: %d in snapshot %d'%(subhalo_number,snapshot_number))
+
+  pos = [pos_]
+  vel = [vel_]
+  mass = [mass_]
+  ID = [ID_]
+  time = [header_['Time']]
+  num = [snapshot_number]
+
+  shift = 0
+  while prog >= 0:
+    shift += 1
+    print('progenitor: %d in snapshot %d'%(prog,snapshot_number-shift))
+
+    prog, _, pos_, vel_, mass_, ID_, header_ = subhalo_tracing_data(snapshot_number-shift,prog)
+
+    pos += [pos_]
+    vel += [vel_]
+    mass += [mass_]
+    ID += [ID_]
+    time += [header_['Time']]
+    num += [snapshot_number-shift]
+
+  pos = pos[::-1]
+  vel = vel[::-1]
+  mass = mass[::-1]
+  ID = ID[::-1]
+  time = time[::-1]
+  num = num[::-1]
+
+  shift = 0
+  while desc >= 0:
+    shift += 1
+    print('descendant: %d in snapshot %d'%(desc,snapshot_number+shift))
+
+    _, desc, pos_, vel_, mass_, ID_, header_ = subhalo_tracing_data(snapshot_number+shift,desc)
+
+    pos += [pos_]
+    vel += [vel_]
+    mass += [mass_]
+    ID += [ID_]
+    time += [header_['Time']]
+    num += [snapshot_number+shift]
+
+  return np.array(num), np.array(time), np.array(pos), np.array(vel), np.array(mass), ID
+
+def subhalo_group_data(fileprefix):
+
+  '''
+  
+  Read halos from GADGET HDF5 FOF+subhalo file and return data relevant to group membership.
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., fof_subhalo_tab_000, not fof_subhalo_tab_000.0.hdf5)
+
+  Returns:
+    
+    number: the number of the halo within the FOF+subhalo catalogue
+    
+  '''
+
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  fileinst = 0
+  group = []
+  rank = []
+  parentrank = []
+  mass = []
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      ScaleFactor = 1./(1+header['Redshift'])
+      numfiles = header['NumFiles']
+
+      group += [np.array(f['Subhalo/SubhaloGroupNr'])]
+      rank += [np.array(f['Subhalo/SubhaloRankInGr'])]
+      parentrank += [np.array(f['Subhalo/SubhaloParentRank'])]
+      mass += [np.array(f['Subhalo/SubhaloMass'])]
+
+    fileinst += 1
+
+  return np.concatenate(group), np.concatenate(rank), np.concatenate(parentrank), np.concatenate(mass), header
+
+def group_extent(fileprefix,group,size_definition='TopHat200'):
+
+  '''
+  
+  Return position and extent of a group from a GADGET HDF5 FOF file (SUBFIND required).
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., fof_tab_000, not fof_tab_000.0.hdf5)
+
+    group: group number
+
+    size_definition: 'Crit200', 'Crit500', 'Mean200', or 'TopHat200' (default)
+    
+  Returns:
+    
+    pos: shape (3,), comoving
+    
+    radius
+    
+    header: a dict with header info, use list(header) to see the fields
+    
+  '''
+
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  fileinst = 0
+  hinst = 0
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      numfiles = header['NumFiles']
+
+      if hinst + header['Ngroups_ThisFile'] > group:
+        index = group - hinst
+
+        pos = np.array(f['Group/GroupPos'])[index]
+        radius = np.array(f['Group/Group_R_'+size_definition])[index]
+
+        break
+
+      hinst += int(header['Ngroups_ThisFile'])
+
+    fileinst += 1
+  else:
+    print('Warning: halo %d not found'%group)
+    pos = np.zeros(3)
+    radius = 0
+
+  return pos, radius, header
+
+def count_halos():
+
+  '''
+  
+  Trace a subhalo's position, mass, and other tracking information across snapshots.
+  
+  Parameters:
+    
+  Returns:
+    
+    num: snapshot number
+
+    times: scale factor array, shape (NT,)
+
+    groups: group count array, shape (NT,)
+
+    subhalos: subhalo count array, shape (NT,)
+    
+    mass: total mass in halos, shape (NT,)
+
+  '''
+
+  times = []
+  groups = []
+  subhalos = []
+  mass = []
+
+  snapshot_number = 0
+  while True:
+    fileprefix = fileprefix_subhalo%(snapshot_number,snapshot_number)
+    try:
+      mass_, header = fof_to_halos(fileprefix,opts={'pos':False,'vel':False,'mass':True})
+    except Exception as e:
+      print(e)
+      break
+
+    times += [header['Time']]
+    groups += [header['Ngroups_Total']]
+    subhalos += [header['Nsubhalos_Total']]
+    mass += [np.sum(mass_)]
+
+    snapshot_number += 1
+
+  return np.arange(snapshot_number), np.array(times), np.array(groups), np.array(subhalos), np.array(mass)
+
