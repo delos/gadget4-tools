@@ -400,6 +400,7 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
 
   fileinst = 0
   hinst = 0
+  ginst = 0
   while fileinst < numfiles:
 
     if numfiles == 1:
@@ -424,10 +425,12 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
 
         pos = np.array(f['Subhalo/SubhaloPos'])[index]
         vel = np.array(f['Subhalo/SubhaloVel'])[index] * np.sqrt(ScaleFactor)
-        mass = np.array(f['Subhalo/SubhaloMass'])[index]
         ID = {'group':np.array(f['Subhalo/SubhaloGroupNr'])[index],
           'subhalo':subhalo_number,
           'particle':np.array(f['Subhalo/SubhaloIDMostbound'])[index]}
+        mass = {'group':np.array(f['Group/GroupMass'])[ID['group']-ginst],
+          'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
+
 
         try:
           with h5py.File(filename_desc, 'r') as fd:
@@ -452,6 +455,7 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
         break
 
       hinst += int(header['Nsubhalos_ThisFile'])
+      ginst += int(header['Ngroups_ThisFile'])
 
     fileinst += 1
   else:
@@ -535,7 +539,7 @@ def trace_subhalo(snapshot_number,subhalo_number):
     time += [header_['Time']]
     num += [snapshot_number+shift]
 
-  return np.array(num), np.array(time), np.array(pos), np.array(vel), np.array(mass), ID
+  return np.array(num), np.array(time), np.array(pos), np.array(vel), mass, ID
 
 def subhalo_group_data(fileprefix):
 
