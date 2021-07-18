@@ -35,7 +35,7 @@ def run(argv):
     np.log10(1+delta,out=delta)
   
   fig, ax = plt.subplots(figsize=(12., 10))
-  im = ax.imshow(delta,origin='lower')
+  im = ax.imshow(delta.T,origin='lower')
   cbar = fig.colorbar(im, ax=ax)
   ax.patch.set_facecolor('k')
   
