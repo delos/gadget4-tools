@@ -6,10 +6,10 @@ from snapshot_functions import subhalo_group_data
 def run(argv):
   
   if len(argv) < 3:
-    print('python script.py <group-file> <mass> [subhalos=False]')
+    print('python script.py <group-file> <count> [subhalos=False]')
     return 1
 
-  masspick = float(argv[2])
+  count = int(argv[2])
 
   sub = False
   if len(argv) > 3:
@@ -34,28 +34,14 @@ def run(argv):
     mass = groupmass[idx]
 
   # sort halos by mass
-  sort = np.argsort(mass)
+  sort = np.argsort(mass)[::-1]
   grp = grp[sort]
   num = num[sort]
   mass = mass[sort]
 
-  idx = np.where(mass<masspick)[0][-1]
-  if idx < len(mass)-1 and mass[idx+1]/masspick > masspick/mass[idx]:
-    idx += 1
-
-  print('mass = %g'%mass[idx])
-  print('subhalo number = %d'%num[idx])
-  print('group number = %d'%grp[idx])
-
-  ax = plt.figure().gca()
-
-  ax.loglog(mass[::-1],np.arange(len(mass))+1)
-  ax.axvline(mass[idx])
-
-  ax.set_xlabel(r'$M$ ($M_\odot/h$)')
-  ax.set_ylabel(r'$N(>M)$')
-  
-  plt.show()
+  print('# group subhalo mass')
+  for i in range(count):
+    print('%6d %6d   %.3e'%(grp[i],num[i],mass[i]))
 
 if __name__ == '__main__':
   from sys import argv

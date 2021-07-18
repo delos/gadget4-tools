@@ -549,7 +549,17 @@ def subhalo_group_data(fileprefix):
 
   Returns:
     
-    number: the number of the halo within the FOF+subhalo catalogue
+    group: host group number
+
+    rank: rank of subhalo within host group
+
+    parentrank: rank of parent subhalo within host group
+
+    mass: subhalo mass
+
+    groupmass: mass of host group
+
+    header: a dict with header info, use list(header) to see the fields
     
   '''
 
@@ -575,6 +585,7 @@ def subhalo_group_data(fileprefix):
   rank = []
   parentrank = []
   mass = []
+  _groupmass = []
   while fileinst < numfiles:
 
     if numfiles == 1:
@@ -594,10 +605,14 @@ def subhalo_group_data(fileprefix):
       rank += [np.array(f['Subhalo/SubhaloRankInGr'])]
       parentrank += [np.array(f['Subhalo/SubhaloParentRank'])]
       mass += [np.array(f['Subhalo/SubhaloMass'])]
+      _groupmass += [np.array(f['Group/GroupMass'])]
 
     fileinst += 1
 
-  return np.concatenate(group), np.concatenate(rank), np.concatenate(parentrank), np.concatenate(mass), header
+  group = np.concatenate(group)
+  groupmass = np.concatenate(_groupmass)[group]
+
+  return group, np.concatenate(rank), np.concatenate(parentrank), np.concatenate(mass), groupmass, header
 
 def group_extent(fileprefix,group,size_definition='TopHat200'):
 
