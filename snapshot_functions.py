@@ -72,36 +72,36 @@ def gadget_to_particles(fileprefix, opts={'pos':True,'vel':True,'ID':False,'mass
 
       if fileinst == 0:
         # allocate full-sized memory blocks in advance, for efficiency
-        if opts['pos']: pos = np.zeros((3,np.sum(NPtot)),dtype=np.float32)
-        if opts['vel']: vel = np.zeros((3,np.sum(NPtot)),dtype=np.float32)
-        if opts['mass']: mass = np.zeros(np.sum(NPtot),dtype=np.float32)
-        if opts['ID']: ID = np.zeros(np.sum(NPtot),dtype=np.uint32)
+        if opts.get('pos'): pos = np.zeros((3,np.sum(NPtot)),dtype=np.float32)
+        if opts.get('vel'): vel = np.zeros((3,np.sum(NPtot)),dtype=np.float32)
+        if opts.get('mass'): mass = np.zeros(np.sum(NPtot),dtype=np.float32)
+        if opts.get('ID'): ID = np.zeros(np.sum(NPtot),dtype=np.uint32)
  
       for typ in range(len(NPtot)):
         NPtyp = int(NP[typ])
         if NPtyp == 0:
           continue
 
-        if opts['pos']: pos[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Coordinates'%typ]).T
-        if opts['vel']: vel[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Velocities'%typ]).T * np.sqrt(ScaleFactor)
+        if opts.get('pos'): pos[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Coordinates'%typ]).T
+        if opts.get('vel'): vel[:,pinst:pinst+NPtyp] = np.array(f['PartType%d/Velocities'%typ]).T * np.sqrt(ScaleFactor)
 
-        if opts['mass']:
+        if opts.get('mass'):
           if MassTable[typ] == 0.:
             mass[pinst:pinst+NPtyp] = np.array(f['PartType%d/Masses'%typ])
           else:
             mass[pinst:pinst+NPtyp] = np.full(NPtyp,MassTable[typ])
 
-        if opts['ID']: ID[pinst:pinst+NPtyp] = np.array(f['PartType%d/ParticleIDs'%typ])
+        if opts.get('ID'): ID[pinst:pinst+NPtyp] = np.array(f['PartType%d/ParticleIDs'%typ])
 
         pinst += NPtyp
 
     fileinst += 1
 
   ret = []
-  if opts['pos']: ret += [pos]
-  if opts['vel']: ret += [vel]
-  if opts['mass']: ret += [mass]
-  if opts['ID']: ret += [ID]
+  if opts.get('pos'): ret += [pos]
+  if opts.get('vel'): ret += [vel]
+  if opts.get('mass'): ret += [mass]
+  if opts.get('ID'): ret += [ID]
   ret += [header]
 
   return tuple(ret)
@@ -148,9 +148,9 @@ def fof_to_halos(fileprefix,opts={'pos':True,'vel':True,'mass':True}):
     numfiles = 1
 
   fileinst = 0
-  if opts['pos']: pos = []
-  if opts['vel']: vel = []
-  if opts['mass']: mass = []
+  if opts.get('pos'): pos = []
+  if opts.get('vel'): vel = []
+  if opts.get('mass'): mass = []
   while fileinst < numfiles:
 
     if numfiles == 1:
@@ -167,22 +167,22 @@ def fof_to_halos(fileprefix,opts={'pos':True,'vel':True,'mass':True}):
       numfiles = header['NumFiles']
 
       if header['Ngroups_Total'] == 0:
-        if opts['pos']: pos = [[]]
-        if opts['vel']: vel = [[]]
-        if opts['mass']: mass = [[]]
+        if opts.get('pos'): pos = [[]]
+        if opts.get('vel'): vel = [[]]
+        if opts.get('mass'): mass = [[]]
         break
  
       if header['Ngroups_ThisFile'] > 0:
-        if opts['pos']: pos += [np.array(f['Group/GroupPos']).T]
-        if opts['vel']: vel += [np.array(f['Group/GroupVel']).T * np.sqrt(ScaleFactor)]
-        if opts['mass']: mass += [np.array(f['Group/GroupMass'])]
+        if opts.get('pos'): pos += [np.array(f['Group/GroupPos']).T]
+        if opts.get('vel'): vel += [np.array(f['Group/GroupVel']).T * np.sqrt(ScaleFactor)]
+        if opts.get('mass'): mass += [np.array(f['Group/GroupMass'])]
 
     fileinst += 1
 
   ret = []
-  if opts['pos']: ret += [np.concatenate(pos,axis=1)]
-  if opts['vel']: ret += [np.concatenate(vel,axis=1)]
-  if opts['mass']: ret += [np.concatenate(mass)]
+  if opts.get('pos'): ret += [np.concatenate(pos,axis=1)]
+  if opts.get('vel'): ret += [np.concatenate(vel,axis=1)]
+  if opts.get('mass'): ret += [np.concatenate(mass)]
   ret += [header]
 
   return tuple(ret)
@@ -541,7 +541,7 @@ def trace_subhalo(snapshot_number,subhalo_number):
 
   return np.array(num), np.array(time), np.array(pos), np.array(vel), mass, ID
 
-def subhalo_group_data(fileprefix):
+def subhalo_group_data(fileprefix,opts={'mass':True,'len':False,'pos':False},parttype=None):
 
   '''
   
@@ -550,6 +550,10 @@ def subhalo_group_data(fileprefix):
   Parameters:
     
     fileprefix: input file prefix (e.g., fof_subhalo_tab_000, not fof_subhalo_tab_000.0.hdf5)
+
+    opts: which fields to read and return
+
+    parttype: if not None, consider only particles of the given type for certain outputs
 
   Returns:
     
@@ -562,6 +566,14 @@ def subhalo_group_data(fileprefix):
     mass: subhalo mass
 
     groupmass: mass of host group
+
+    length: subhalo particle count
+
+    grouplength: host group particle count
+
+    pos: subhalo position (NH,3)
+
+    grouppos: host group position (NH,3)
 
     header: a dict with header info, use list(header) to see the fields
     
@@ -588,8 +600,15 @@ def subhalo_group_data(fileprefix):
   group = []
   rank = []
   parentrank = []
-  mass = []
-  _groupmass = []
+  if opts.get('mass'):
+    mass = []
+    _groupmass = []
+  if opts.get('len'):
+    length = []
+    _grouplength = []
+  if opts.get('pos'):
+    pos = []
+    _grouppos = []
   while fileinst < numfiles:
 
     if numfiles == 1:
@@ -608,15 +627,41 @@ def subhalo_group_data(fileprefix):
       group += [np.array(f['Subhalo/SubhaloGroupNr'])]
       rank += [np.array(f['Subhalo/SubhaloRankInGr'])]
       parentrank += [np.array(f['Subhalo/SubhaloParentRank'])]
-      mass += [np.array(f['Subhalo/SubhaloMass'])]
-      _groupmass += [np.array(f['Group/GroupMass'])]
+      if parttype is None:
+        if opts.get('mass'):
+          mass += [np.array(f['Subhalo/SubhaloMass'])]
+          _groupmass += [np.array(f['Group/GroupMass'])]
+        if opts.get('len'):
+          length += [np.array(f['Subhalo/SubhaloLen'])]
+          _grouplength += [np.array(f['Group/GroupLen'])]
+      else:
+        if opts.get('mass'):
+          mass += [np.array(f['Subhalo/SubhaloMassType'][:,parttype])]
+          _groupmass += [np.array(f['Group/GroupMassType'][:,parttype])]
+        if opts.get('len'):
+          length += [np.array(f['Subhalo/SubhaloLenType'][:,parttype])]
+          _grouplength += [np.array(f['Group/GroupLenType'][:,parttype])]
+      if opts.get('pos'):
+        pos += [np.array(f['Subhalo/SubhaloPos'])]
+        _grouppos += [np.array(f['Group/GroupPos'])]
 
     fileinst += 1
 
   group = np.concatenate(group)
-  groupmass = np.concatenate(_groupmass)[group]
 
-  return group, np.concatenate(rank), np.concatenate(parentrank), np.concatenate(mass), groupmass, header
+  ret = [group, np.concatenate(rank), np.concatenate(parentrank)]
+
+  if opts.get('mass'):
+    groupmass = np.concatenate(_groupmass)[group]
+    ret += [np.concatenate(mass), groupmass]
+  if opts.get('len'):
+    grouplength = np.concatenate(_grouplength)[group]
+    ret += [np.concatenate(length), grouplength]
+  if opts.get('pos'):
+    grouppos = np.concatenate(_grouppos,axis=0)[group]
+    ret += [np.concatenate(pos), grouppos]
+
+  return tuple(ret + [header])
 
 def group_extent(fileprefix,group,size_definition='TopHat200'):
 
