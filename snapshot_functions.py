@@ -3,6 +3,7 @@ from scipy.fft import fftn,ifftn,fftshift
 import h5py
 from pathlib import Path
 
+fileprefix_snapshot = 'snapdir_%03d/snapshot_%03d'
 fileprefix_subhalo = 'groups_%03d/fof_subhalo_tab_%03d'
 fileprefix_subhalo_desc = 'groups_%03d/subhalo_desc_%03d'
 fileprefix_subhalo_prog = 'groups_%03d/subhalo_prog_%03d'
@@ -782,4 +783,51 @@ def count_halos():
     snapshot_number += 1
 
   return np.arange(snapshot_number), np.array(times), np.array(groups), np.array(subhalos), np.array(mass)
+
+def list_snapshots():
+
+  '''
+  
+  Get all snapshot names and headers.
+  
+  Parameters:
+    
+  Returns:
+    
+    names: list of snapshot prefixes
+
+    headers: list of header dicts
+    
+  '''
+
+  snapshot_number = 0
+
+  names = []
+  headers = []
+
+  while True:
+    prefix = fileprefix_snapshot%(snapshot_number,snapshot_number)
+
+    filepath = [
+      Path(prefix + '.hdf5'),
+      Path(prefix + '.0.hdf5'),
+      ]
+
+    if filepath[0].is_file():
+      filename = prefix + '.hdf5'
+      numfiles = 1
+    elif filepath[1].is_file():
+      filename = prefix + '.0.hdf5'
+      numfiles = 2
+    else:
+      break
+
+    names += [prefix]
+
+    with h5py.File(filename, 'r') as f:
+      headers += [dict(f['Header'].attrs)]
+
+    snapshot_number += 1
+
+  return names, headers
 

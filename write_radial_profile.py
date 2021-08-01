@@ -11,20 +11,31 @@ def center_box(c,pos,BoxSize):
       if pos[d,p] < -0.5*BoxSize: pos[d,p] += BoxSize
 
 @njit
-def cm_in_radius(pos,mass,radius):
+def cm_in_radius(pos,mass,length,shift,radius,BoxSize):
   cm = np.zeros(3)
   m = 0.
   particles = 0
+  idx = 0
 
-  for p in range(pos.shape[1]):
-    r2 = np.sum(pos[:,p]**2)
+  for p in range(length):
+    dx = pos[:,p] - shift
+    for d in range(3):
+      if dx[d] >= 0.5*BoxSize: dx[d] -= BoxSize
+      elif dx[d] < -0.5*BoxSize: dx[d] += BoxSize
+    r2 = np.sum(dx**2)
     if r2 < radius**2:
       cm += pos[:,p] * mass[p]
       m += mass[p]
       particles += 1
+    if r2 < 4*radius**2:
+      for d in range(3):
+        pos[d,idx], pos[d,p] = pos[d,p], pos[d,idx]
+      mass[idx], mass[p] = mass[p], mass[idx]
+      idx += 1
+
   cm /= m
 
-  return cm, particles
+  return cm, particles, idx
   
 def find_center(c,pos,mass,radius,BoxSize):
   limit_particles = 100
@@ -33,16 +44,14 @@ def find_center(c,pos,mass,radius,BoxSize):
   if radius <= 0.: particles = 0
 
   shift = c.copy()
-  center_box(c,pos,BoxSize)
 
   iteration = 0
+  idx = pos.shape[1]
   while particles > limit_particles:
-    cm, particles = cm_in_radius(pos,mass,radius)
-    center_box(cm,pos,BoxSize)
-    shift += cm
+    shift, particles, idx = cm_in_radius(pos,mass,idx,shift,radius,BoxSize)
 
     iteration += 1
-    print('%4d: CM=(%6g,%6g,%6g), r=%6g, N=%d'%(iteration,cm[0],cm[1],cm[2],radius,particles))
+    print('%4d: (%.12e, %.12e, %.12e), r=%6g, N=%d'%(iteration,shift[0],shift[1],shift[2],radius,particles))
     radius *= 0.975
 
   return shift
@@ -94,7 +103,7 @@ def run(argv):
     print('python script.py <snapshot-file> <x,y,z> <rmin,rmax,nr> [rfind=0] [output]')
     return 1
   
-  c = np.array(argv[2].split(','),dtype=float)
+  c = np.array(argv[2].split(','),dtype=np.float64)
 
   rb = argv[3].split(',')
   rmin = float(rb[0])
@@ -109,15 +118,18 @@ def run(argv):
 
   # read particles and halos
   pos, mass, header = gadget_to_particles(argv[1],opts={'pos':True,'mass':True})
+
   BoxSize = header['BoxSize']
 
   shift = find_center(c,pos,mass,rfind,BoxSize)
+  center_box(shift,pos,BoxSize)
 
   r, rho, ru, m, ct = profile(pos,mass,rmin,rmax,nr)
 
   with open(outname,'wt') as f:
+    f.write('# (%.12e, %.12e, %.12e)\n'%tuple(shift))
+    f.write('# %.12e\n'%header['Time'])
     f.write('# radius rho r_upper mass count\n')
-    f.write('# (%6g, %6g, %6g)\n'%tuple(shift))
     for i in range(len(r)):
       f.write('%.6e %.6e %.6e %.6e %d\n'%(r[i], rho[i], ru[i], m[i], ct[i]))
 
