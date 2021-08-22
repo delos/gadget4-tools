@@ -429,9 +429,23 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
         ID = {'group':np.array(f['Subhalo/SubhaloGroupNr'])[index],
           'subhalo':subhalo_number,
           'particle':np.array(f['Subhalo/SubhaloIDMostbound'])[index]}
-        mass = {'group':np.array(f['Group/GroupMass'])[ID['group']-ginst],
-          'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
 
+        if ID['group']>=ginst:
+          mass = {'group':np.array(f['Group/GroupMass'])[ID['group']-ginst],
+            'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
+        else:
+          ginst2 = ginst
+          fileinst2 = fileinst
+          while ID['group'] < ginst2:
+            fileinst2 -= 1
+            filename_sub2 = filebase_sub%fileinst2
+            with h5py.File(filename_sub2, 'r') as f2:
+              print('reading %s'%filename_sub2)
+              header2 = dict(f2['Header'].attrs)
+              ginst2 -= int(header2['Ngroups_ThisFile'])
+              if ID['group'] >= ginst2:
+                mass = {'group':np.array(f2['Group/GroupMass'])[ID['group']-ginst2],
+                  'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
 
         try:
           with h5py.File(filename_desc, 'r') as fd:
@@ -830,4 +844,133 @@ def list_snapshots():
     snapshot_number += 1
 
   return names, headers
+
+def read_particles_filter(fileprefix, center_radius=None, ID_list=None, opts={'pos':True,'vel':True,'ID':False,'mass':True}):
+
+  '''
+  
+  Read particles from GADGET HDF5 snapshot. Return only particles matching filter.
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
+
+    center_radius: filter particles within radius of center.
+      Format: [center_x, center_y, center_z, radius]
+
+    ID_list: only include particles whose IDs are listed
+
+    opts: which fields to read and return
+    
+  Returns:
+    
+    pos: position array, shape (NP,3), comoving
+    
+    vel: velocity array, shape (NP,3), peculiar
+
+    ID: ID array, shape (NP,)
+    
+    mass: mass array, shape (NP,)
+    
+    header: a dict with header info, use list(header) to see the fields
+  
+  '''
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  fileinst = 0
+  if opts.get('pos'): pos = []
+  if opts.get('vel'): vel = []
+  if opts.get('mass'): mass = []
+  if opts.get('ID'): ID = []
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      MassTable = header['MassTable']
+      ScaleFactor = 1./(1+header['Redshift'])
+      NP = header['NumPart_ThisFile']
+      NPtot = header['NumPart_Total']
+      numfiles = header['NumFilesPerSnapshot']
+      BoxSize = header['BoxSize']
+
+      for typ in range(len(NPtot)):
+        NPtyp = int(NP[typ])
+        if NPtyp == 0:
+          continue
+
+        chunksize = 1048576
+        Nleft = NPtyp
+        i0 = 0
+
+        while Nleft > 0:
+          Nc = min(chunksize,Nleft)
+          iread = slice(i0,i0+Nc)
+
+          idx = np.full(Nc,True)
+
+          if center_radius is not None:
+            pos_ = np.array(f['PartType%d/Coordinates'%typ][iread])
+            sep = pos_ - np.array(center_radius[None,:3])
+            sep[sep > .5*BoxSize] -= BoxSize
+            sep[sep < -.5*BoxSize] += BoxSize
+            idx = idx & (np.sum(sep**2,axis=1) < center_radius[3]**2)
+          if ID_list is not None:
+            ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])
+            idx = idx & np.isin(ID_,ID_list,assume_unique=True)
+
+          if np.sum(idx) > 0:
+            if opts.get('pos'):
+              if center_radius is None:
+                pos += [np.array(f['PartType%d/Coordinates'%typ][iread])[idx]]
+              else: pos += [pos_]
+            if opts.get('vel'):
+              vel += [np.array(f['PartType%d/Velocities'%typ][iread])[idx] * np.sqrt(ScaleFactor)]
+
+            if opts.get('mass'):
+              if MassTable[typ] == 0.:
+                mass_ += np.array(f['PartType%d/Masses'%typ][iread])
+              else:
+                mass_ = np.full(Nc,MassTable[typ])
+              mass += [mass_[idx]]
+            if opts.get('ID'):
+              if ID_list is None:
+                ID += [np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]]
+              else: ID += [ID_[idx]]
+
+          Nleft -= Nc
+          i0 += Nc
+
+    fileinst += 1
+
+  ret = []
+  if opts.get('pos'): ret += [np.concatenate(pos,axis=0)]
+  if opts.get('vel'): ret += [np.concatenate(vel,axis=0)]
+  if opts.get('mass'): ret += [np.concatenate(mass)]
+  if opts.get('ID'): ret += [np.concatenate(ID)]
+  ret += [header]
+
+  return tuple(ret)
 
