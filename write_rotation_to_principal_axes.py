@@ -14,7 +14,7 @@ def run(argv):
 
   print('getting IDs of nearby particles')
   pos, header = read_particles_filter(argv[2],ID_list=[ID],opts={'pos':True})
-  IDs, header = read_particles_filter(argv[2],center_radius=np.append(pos[0],r),opts={'ID':True})
+  IDs, header = read_particles_filter(argv[2],center=pos[0],radius=r,opts={'ID':True})
 
   print('reading positions of %d particles'%len(IDs))
   pos0, ID0, header = read_particles_filter(argv[2],ID_list=IDs,opts={'pos':True,'ID':True})

@@ -1,6 +1,6 @@
 import numpy as np
 from numba import njit
-from snapshot_functions import list_snapshots
+from snapshot_functions import list_snapshots, read_particles_filter
 from pathlib import Path
 import h5py
 
@@ -30,19 +30,19 @@ def cic_bin(x,BoxSize,GridSize,weights,density):
       f[d] -= i[d] + 0.5
 
     if  i[0] >= 0 and  i[0] < N and  i[1] >= 0 and  i[1] < N and  i[2] >= 0 and  i[2] < N:
-	    hist[i[0],i[1],i[2]] += (1-f[0])*(1-f[1])*(1-f[2])*weights[p]
+      hist[i[0],i[1],i[2]] += (1-f[0])*(1-f[1])*(1-f[2])*weights[p]
     if i1[0] >= 0 and i1[0] < N and  i[1] >= 0 and  i[1] < N and  i[2] >= 0 and  i[2] < N:
       hist[i1[0],i[1],i[2]] += f[0]*(1-f[1])*(1-f[2])*weights[p]
     if  i[0] >= 0 and  i[0] < N and i1[1] >= 0 and i1[1] < N and  i[2] >= 0 and  i[2] < N:
       hist[i[0],i1[1],i[2]] += (1-f[0])*f[1]*(1-f[2])*weights[p]
     if  i[0] >= 0 and  i[0] < N and  i[1] >= 0 and  i[1] < N and i1[2] >= 0 and i1[2] < N:
-	    hist[i[0],i[1],i1[2]] += (1-f[0])*(1-f[1])*f[2]*weights[p]
+      hist[i[0],i[1],i1[2]] += (1-f[0])*(1-f[1])*f[2]*weights[p]
     if i1[0] >= 0 and i1[0] < N and i1[1] >= 0 and i1[1] < N and  i[2] >= 0 and  i[2] < N:
       hist[i1[0],i1[1],i[2]] += f[0]*f[1]*(1-f[2])*weights[p]
     if  i[0] >= 0 and  i[0] < N and i1[1] >= 0 and i1[1] < N and i1[2] >= 0 and i1[2] < N:
-	    hist[i[0],i1[1],i1[2]] += (1-f[0])*f[1]*f[2]*weights[p]
+      hist[i[0],i1[1],i1[2]] += (1-f[0])*f[1]*f[2]*weights[p]
     if i1[0] >= 0 and i1[0] < N and  i[1] >= 0 and  i[1] < N and i1[2] >= 0 and i1[2] < N:
-	    hist[i1[0],i[1],i1[2]] += f[0]*(1-f[1])*f[2]*weights[p]
+      hist[i1[0],i[1],i1[2]] += f[0]*(1-f[1])*f[2]*weights[p]
     if i1[0] >= 0 and i1[0] < N and i1[1] >= 0 and i1[1] < N and i1[2] >= 0 and i1[2] < N:
       hist[i1[0],i1[1],i1[2]] += f[0]*f[1]*f[2]*weights[p]
 
@@ -51,89 +51,52 @@ def cic_bin(x,BoxSize,GridSize,weights,density):
 
   return hist,bins
 
-def read_positions(fileprefix, xlim,ylim,zlim):
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
-
-  fileinst = 0
-  pinst = 0
-  pos = []
-  mass = []
-  while fileinst < numfiles:
-
-    if numfiles == 1:
-      filename = filebase
-    else:
-      filename = filebase%fileinst
-
-    with h5py.File(filename, 'r') as f:
-      print('reading %s'%filename)
-
-      header = dict(f['Header'].attrs)
-
-      MassTable = header['MassTable']
-      ScaleFactor = 1./(1+header['Redshift'])
-      NP = header['NumPart_ThisFile']
-      NPtot = header['NumPart_Total']
-      numfiles = header['NumFilesPerSnapshot']
-
-      for typ in range(len(NPtot)):
-        NPtyp = int(NP[typ])
-        if NPtyp == 0:
-          continue
-
-        pos_ = np.array(f['PartType%d/Coordinates'%typ])
-
-        idx =     (xlim[0]<=pos_[:,0])&(xlim[1]>=pos_[:,0])
-        idx = idx&(ylim[0]<=pos_[:,1])&(ylim[1]>=pos_[:,1])
-        idx = idx&(zlim[0]<=pos_[:,2])&(zlim[1]>=pos_[:,2])
-
-        pos += [pos_[idx]]
-
-        if MassTable[typ] == 0.:
-          mass_ = np.array(f['PartType%d/Masses'%typ])
-        else:
-          mass_ = np.full(NPtyp,MassTable[typ])
-
-        mass += [mass_[idx]]
-
-        pinst += NPtyp
-
-    fileinst += 1
-
-  return np.concatenate(pos,axis=0), np.concatenate(mass), header
-
 def run(argv):
   
   if len(argv) < 5:
-    print('python script.py <snapshot min,max> <grid size> <x,y,z> <r> [out-name]')
+    print('python script.py <snapshot min,max> <grid size> <x,y,z or trace-file> <r> [rotation-file=0] [physical=0] [out-name]')
     return 1
 
   ssmin,ssmax = [int(x) for x in argv[1].split(',')]
   
   GridSize = int(argv[2])
 
-  x,y,z = [float(x) for x in argv[3].split(',')]
-
+  try:
+    _data = np.loadtxt(argv[3])
+    _ss = _data[:,0]
+    _x = _data[:,2]
+    _y = _data[:,3]
+    _z = _data[:,4]
+    print('using trace file')
+  except Exception as e:
+    print('using coordinates')
+    x,y,z = [float(x) for x in argv[3].split(',')]
+  
   r = float(argv[4])
 
-  outbase = 'subfield'
+  rotation = None
   if len(argv) > 5:
-    outbase = argv[5]
+    try:
+      rotation = np.loadtxt(argv[5])
+      print('rotation matrix:')
+      with np.printoptions(precision=3, suppress=True):
+        print(rotation)
+    except:
+      rotation = None
+      print('no rotation')
+
+  phys = False
+  if len(argv) > 6:
+    if argv[6][0].lower() == 't': phys = True
+    elif argv[6][0].lower() == 'f': phys = False
+    elif int(argv[6]) != 0: phys = True
+  if phys:
+    r_phys = r
+    print('transform to physical')
+
+  outbase = 'subfield'
+  if len(argv) > 7:
+    outbase = argv[7]
   
   names, headers = list_snapshots()
 
@@ -146,11 +109,31 @@ def run(argv):
     outname = outbase + filename[-4:] + '.bin'
     scale = headers[i]['Time']
 
-    pos, mass, header = read_positions(filename,[x-r,x+r],[y-r,y+r],[z-r,z+r])
+    try:
+      if snapshot_number < _ss[0]:
+        center = [_x[0],_y[0],_z[0]]
+      elif snapshot_number > _ss[-1]:
+        center = [_x[-1],_y[-1],_z[-1]]
+      else:
+        center = [
+          _x[_ss==snapshot_number][0],
+          _y[_ss==snapshot_number][0],
+          _z[_ss==snapshot_number][0],
+          ]
+    except:
+      center = [x,y,z]
 
-    pos -= np.array([x-r,y-r,z-r]).reshape((1,3))
+    if phys:
+      r = r_phys / scale
+
+    pos, mass, header = read_particles_filter(filename,center=center,halfwidth=r,opts={'mass':True,'pos':True})
+
+    pos += np.array([r,r,r]).reshape((1,3))
 
     dens, bins = cic_bin(pos,2*r,GridSize,weights=mass,density=True)
+
+    if phys:
+      dens /= scale**3
 
     dens.tofile(outname)
     print('saved to ' + outname)

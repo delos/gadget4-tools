@@ -845,7 +845,7 @@ def list_snapshots():
 
   return names, headers
 
-def read_particles_filter(fileprefix, center_radius=None, ID_list=None, opts={'pos':True,'vel':True,'ID':False,'mass':True}):
+def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, opts={'pos':True,'vel':True,'ID':False,'mass':True}):
 
   '''
   
@@ -855,8 +855,13 @@ def read_particles_filter(fileprefix, center_radius=None, ID_list=None, opts={'p
     
     fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
 
-    center_radius: filter particles within radius of center.
-      Format: [center_x, center_y, center_z, radius]
+    center: center particles about this position
+
+    rotation: 3x3 rotation matrix to apply. Requires center.
+
+    radius: filter particles within radius. Requires center.
+
+    halfwidth: filter particles within box of width 2*halfwidth. Requires center.
 
     ID_list: only include particles whose IDs are listed
 
@@ -891,6 +896,12 @@ def read_particles_filter(fileprefix, center_radius=None, ID_list=None, opts={'p
     # exact filename was passed - will cause error if >1 files, otherwise fine
     filebase = fileprefix
     numfiles = 1
+
+  if center is not None:
+    if len(np.shape(center)) < 2:
+      center = np.array(center)[None,:]
+    else:
+      center = np.array(center)
 
   fileinst = 0
   if opts.get('pos'): pos = []
@@ -931,21 +942,29 @@ def read_particles_filter(fileprefix, center_radius=None, ID_list=None, opts={'p
 
           idx = np.full(Nc,True)
 
-          if center_radius is not None:
+          if center is not None: # filter by position
             pos_ = np.array(f['PartType%d/Coordinates'%typ][iread])
-            sep = pos_ - np.array(center_radius[None,:3])
-            sep[sep > .5*BoxSize] -= BoxSize
-            sep[sep < -.5*BoxSize] += BoxSize
-            idx = idx & (np.sum(sep**2,axis=1) < center_radius[3]**2)
-          if ID_list is not None:
+            pos_ -= center
+            if BoxSize > 0.:
+              pos_[pos_ > .5*BoxSize] -= BoxSize
+              pos_[pos_ < -.5*BoxSize] += BoxSize
+            if rotation is not None: pos_ = (rotation@(pos_.T)).T
+            if radius is not None:
+              idx = idx & (np.sum(pos_**2,axis=1) < radius**2)
+            if halfwidth is not None:
+              idx = idx&(-halfwidth<=pos_[:,0])&(pos_[:,0]<=halfwidth)
+              idx = idx&(-halfwidth<=pos_[:,1])&(pos_[:,1]<=halfwidth)
+              idx = idx&(-halfwidth<=pos_[:,2])&(pos_[:,2]<=halfwidth)
+
+          if ID_list is not None: # filter by ID
             ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])
             idx = idx & np.isin(ID_,ID_list,assume_unique=True)
 
           if np.sum(idx) > 0:
             if opts.get('pos'):
-              if center_radius is None:
+              if center is None:
                 pos += [np.array(f['PartType%d/Coordinates'%typ][iread])[idx]]
-              else: pos += [pos_]
+              else: pos += [pos_[idx]]
             if opts.get('vel'):
               vel += [np.array(f['PartType%d/Velocities'%typ][iread])[idx] * np.sqrt(ScaleFactor)]
 
