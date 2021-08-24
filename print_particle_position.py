@@ -1,6 +1,6 @@
 import numpy as np
 from numba import njit
-from snapshot_functions import gadget_to_particles
+from snapshot_functions import read_particles_filter
 
 def run(argv):
   
@@ -8,19 +8,11 @@ def run(argv):
     print('python script.py <snapshot> <ID>')
     return 1
 
-  ID1 = int(argv[2])
+  ID = int(argv[2])
 
-  pos, ID, _ = gadget_to_particles(argv[1],opts={'pos':True,'vel':False,'ID':True,'mass':False})
+  pos, _ = read_particles_filter(argv[1],ID_list=[ID],opts={'pos':True})
 
-  idx = np.where(ID == ID1)[0]
-
-  if len(idx) > 0:
-    idx = idx[0]
-  else:
-    print('not found')
-    return 1
-
-  print(list(pos[:,idx]))
+  print(pos.tolist())
 
   return 0
 
