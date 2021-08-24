@@ -1,5 +1,5 @@
 # gadget4-tools
-Simple examples of IC creation and snapshot reading/interpretation for the [GADGET-4](https://wwwmpa.mpa-garching.mpg.de/gadget4/) simulation code. These scripts are intended only as a starting point for further development.
+Examples of IC creation and snapshot reading/interpretation for the [GADGET-4](https://wwwmpa.mpa-garching.mpg.de/gadget4/) simulation code. The example scripts listed below are intended as a starting point for further development. Many of the scripts that I use for my research are also here (currently undocumented). 
 
 Requires: numpy, scipy, matplotlib, h5py
 
