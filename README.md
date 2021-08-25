@@ -12,8 +12,8 @@ See code for further documentation.
 
 ## Example initial conditions
 
-1. **concordance_DMO.py**: generate dark matter initial conditions from a standard power spectrum.
-2. **poisson.py**: generate primordial black hole initial conditions. Particles are Poisson-distributed with zero velocity and a lognormal mass spectrum.
+1. **write_IC_concordance_DMO.py**: generate dark matter initial conditions from a standard power spectrum.
+2. **write_ID_poisson.py**: generate primordial black hole initial conditions. Particles are Poisson-distributed with zero velocity and a lognormal mass spectrum.
 
 ## Example snapshot analysis
 

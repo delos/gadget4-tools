@@ -126,7 +126,7 @@ def run(argv):
     if phys:
       r = r_phys / scale
 
-    pos, mass, header = read_particles_filter(filename,center=center,halfwidth=r,opts={'mass':True,'pos':True})
+    pos, mass, header = read_particles_filter(filename,center=center,halfwidth=r,rotation=rotation,opts={'mass':True,'pos':True})
 
     pos += np.array([r,r,r]).reshape((1,3))
 
