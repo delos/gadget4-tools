@@ -24,6 +24,9 @@ def run(argv):
 
   delta = np.mean(delta,axis=axis) # project
 
+  if axis == 1:
+    delta = delta.T # maintain parity
+
   outname = filename + '.%d.2d'%axis
   delta.tofile(outname)
 

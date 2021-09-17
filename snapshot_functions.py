@@ -845,7 +845,7 @@ def list_snapshots():
 
   return names, headers
 
-def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, opts={'pos':True,'vel':True,'ID':False,'mass':True}):
+def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True}):
 
   '''
   
@@ -864,6 +864,12 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     halfwidth: filter particles within box of width 2*halfwidth. Requires center.
 
     ID_list: only include particles whose IDs are listed
+
+    type_list: only include particles of the listed types
+
+    part_range: only read particles whose positions within the files lie within range.
+      Useful with group-ordered snapshots.
+      Format: ([minType0,minType1,...], [maxType0+1,maxType1+1,...])
 
     opts: which fields to read and return
     
@@ -915,6 +921,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     else:
       filename = filebase%fileinst
 
+
     with h5py.File(filename, 'r') as f:
       print('reading %s'%filename)
 
@@ -927,7 +934,16 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
       numfiles = header['NumFilesPerSnapshot']
       BoxSize = header['BoxSize']
 
-      for typ in range(len(NPtot)):
+      if fileinst == 0:
+        if type_list is None:
+          types = np.arange(len(NPtot))
+        else:
+          types = np.intersect1d(type_list,np.arange(len(NPtot)))
+          print('  types ' + ', '.join([str(x) for x in types]))
+        i00 = np.zeros(len(NPtot),dtype=np.int64)
+
+      nreadTot = 0
+      for typ in types:
         NPtyp = int(NP[typ])
         if NPtyp == 0:
           continue
@@ -960,7 +976,13 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
             ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])
             idx = idx & np.isin(ID_,ID_list,assume_unique=True)
 
-          if np.sum(idx) > 0:
+          if part_range is not None: # filter by position in file
+            idx = idx & (part_range[0][typ] < np.arange(i00[typ],i00[typ]+Nc))
+            idx = idx & (np.arange(i00[typ],i00[typ]+Nc) < part_range[1][typ])
+
+          nread = np.sum(idx)
+          nreadTot += nread
+          if nread > 0:
             if opts.get('pos'):
               if center is None:
                 pos += [np.array(f['PartType%d/Coordinates'%typ][iread])[idx]]
@@ -970,7 +992,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
 
             if opts.get('mass'):
               if MassTable[typ] == 0.:
-                mass_ += np.array(f['PartType%d/Masses'%typ][iread])
+                mass_ = np.array(f['PartType%d/Masses'%typ][iread])
               else:
                 mass_ = np.full(Nc,MassTable[typ])
               mass += [mass_[idx]]
@@ -981,7 +1003,9 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
 
           Nleft -= Nc
           i0 += Nc
+          i00[typ] += Nc
 
+    print('  ' + str(nreadTot) + ' particles match filter')
     fileinst += 1
 
   ret = []
