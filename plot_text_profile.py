@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 def run(argv):
   
   if len(argv) < 2:
-    print('python script.py <table> [which] [scale]')
+    print('python script.py <table> [rho or m or n] [scale]')
     return 1
 
   which = 'rho'

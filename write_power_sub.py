@@ -4,6 +4,7 @@ from snapshot_functions import read_particles_filter
 import h5py
 from scipy.fft import fftn
 from scipy.signal.windows import hann
+from scipy.optimize import least_squares
 from pathlib import Path
 
 # memory usage is 16 bytes per particle + 4 bytes per cell
@@ -177,6 +178,35 @@ def group_subhalo_particle_count(fileprefix):
 
   return npartGroup, npartSub, npart
 
+@njit
+def hann_window(x):
+  if x > 1 or x < 0:
+    return 0
+  return .5*(1-np.cos(2*np.pi*x))
+hann_mean = 0.5
+hann_rms = 0.612372
+
+@njit
+def get_weights(x,BoxSize):
+  NP = x.shape[0]
+
+  weights = np.zeros(NP)
+  for p in range(NP):
+    weights[p] = hann_window(x[p,0]/BoxSize)*hann_window(x[p,1]/BoxSize)*hann_window(x[p,2]/BoxSize)
+  return weights
+
+def linear_model(GridSize,Ax,Ay,Az):
+  x = np.arange(GridSize).reshape((-1,1,1))
+  y = np.arange(GridSize).reshape((1,-1,1))
+  z = np.arange(GridSize).reshape((1,1,-1))
+  return Ax*x + Ay*y + Az*z
+
+def quadratic_model(GridSize,Ax,Ay,Az,Bxx,Byy,Bzz,Bxy,Byz,Bzx):
+  x = np.arange(GridSize).reshape((-1,1,1))
+  y = np.arange(GridSize).reshape((1,-1,1))
+  z = np.arange(GridSize).reshape((1,1,-1))
+  return Ax*x + Ay*y + Az*z + Bxx*x**2 + Byy*y**2 + Bzz*z**2 + Bxy*x*y + Byz*y*z + Bzx*z*x
+
 def run(argv):
   
   if len(argv) < 4:
@@ -213,7 +243,6 @@ def run(argv):
     npartGroup, npartSub, npart = group_subhalo_particle_count(groupname)
     part_range = (npartSub,npart)
   except Exception as e:
-    print(e)
     part_range = None
 
   try: outname = argv[7]
@@ -221,24 +250,42 @@ def run(argv):
   
   # read
   pos, mass, header = read_particles_filter(filename,center=center,halfwidth=r,rotation=rotation,type_list=types,part_range=part_range,opts={'mass':True,'pos':True})
-  print('%d particles'%len(mass))
+  print('%d particles'%len(mass) + ' in %g (Mpc/h)^3'%(w**3))
 
   pos += np.array([r,r,r]).reshape((1,3))
 
-  Mtot = np.sum(mass)
-  M2tot = np.sum(mass**2)
-  Neff = Mtot**2/M2tot
-  print('N_eff = %.0f'%Neff)
-  pk_shot = w**3 / Neff
-  density_mean = Mtot / w**3
+  if False:
+    # should we weight the shot noise and mean density by the window function?
+    weights = get_weights(pos,w)
+    Mtot = np.sum(mass*weights)
+    M2tot = np.sum((mass*weights)**2)
+    Neff = Mtot**2/M2tot
+    print('N_eff = %.0f'%Neff)
+    Veff = (hann_mean*w)**3
+    pk_shot = Veff / Neff * hann_mean**3/hann_rms**6
+    density_mean = Mtot / Veff
+  else:
+    Mtot = np.sum(mass)
+    M2tot = np.sum(mass**2)
+    Neff = Mtot**2/M2tot
+    print('N_eff = %.0f'%Neff)
+    Veff = w**3
+    density_mean = Mtot / Veff
+    pk_shot = Mtot**2 / (Neff*Veff)
 
   dens, bins = cic_bin(pos,w,GridSize,weights=mass,density=True)
 
-  densmean = np.mean(dens)
-  dens /= densmean
-  dens -= 1
-  print('density field constructed')
-  print('mean density = %g = %g'%(density_mean,densmean))
+  if False:
+    #result = least_squares(lambda A: np.ravel(dens-linear_model(GridSize,A[0],A[1],A[2])),x0=[0,0,0])
+    #densmean = linear_model(GridSize,*result.x)
+    result = least_squares(lambda A: np.ravel(dens-quadratic_model(GridSize,*A)),x0=[0]*9)
+    densmean = quadratic_model(GridSize,*result.x)
+    dens -= densmean
+  else:
+    densmean = np.mean(dens)
+    dens -= densmean
+    print('density field constructed')
+    print('mean density = %g = %g'%(density_mean,densmean))
 
   # window
   win = hann(GridSize)
