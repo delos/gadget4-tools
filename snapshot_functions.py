@@ -1017,3 +1017,93 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
 
   return tuple(ret)
 
+def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':False,}):
+
+  '''
+  
+  Read subhalos from SUBFIND catalogue.
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
+
+    opts: which fields to read and return
+    
+  Returns:
+    
+    pos: position array, shape (NH,3), comoving
+    
+    vel: velocity array, shape (NH,3), peculiar
+
+    mass: mass array, shape (NH,)
+
+    lentype: particle count array (by type), shape (NH,Ntype)
+    
+    header: a dict with header info, use list(header) to see the fields
+  
+  '''
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  fileinst = 0
+  if opts.get('pos'): pos = []
+  if opts.get('vel'): vel = []
+  if opts.get('mass'): mass = []
+  if opts.get('lentype'): lentype = []
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      ScaleFactor = 1./(1+header['Redshift'])
+      NH = header['Nsubgroups_ThisFile']
+      NHtot = header['Nsubgroups_Total']
+      numfiles = header['NumFiles']
+      BoxSize = header['BoxSize']
+
+      try:
+        if opts.get('pos'):
+          pos += [np.array(f['Subhalo/SubhaloPos'])]
+        if opts.get('vel'):
+          vel += [np.array(f['Subhalo/SubhaloVel']) * np.sqrt(ScaleFactor)]
+        if opts.get('mass'):
+          mass += [np.array(f['Subhalo/SubhaloMass'])]
+        if opts.get('lentype'):
+          lentype += [np.array(f['Subhalo/SubhaloLenType'])]
+      except KeyError as e:
+        pass
+        #print(e)
+
+    fileinst += 1
+
+  ret = []
+  if opts.get('pos'): ret += [np.concatenate(pos,axis=0)]
+  if opts.get('vel'): ret += [np.concatenate(vel,axis=0)]
+  if opts.get('mass'): ret += [np.concatenate(mass)]
+  if opts.get('lentype'): ret += [np.concatenate(lentype,axis=0)]
+  ret += [header]
+
+  return tuple(ret)
+
