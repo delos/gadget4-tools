@@ -73,15 +73,21 @@ def run(argv):
   NH = hlen.shape[0]
   NT = hlen.shape[1]
 
-  print('%d halos'%NH)
+  print('%d subhalos'%NH)
 
   part_index = np.zeros(NT,dtype=int)
   for i in range(start,NH):
+    print('subhalo %d'%i)
     c = hpos[i]
     l = hlen[i]
       
     # read particles
-    pos, mass, header = read_particles_filter(argv[1],center=c,part_range=(part_index,part_index+l),type_list=types,opts={'mass':True,'pos':True})
+    try:
+      pos, mass, header = read_particles_filter(argv[1],center=c,part_range=(part_index,part_index+l),type_list=types,opts={'mass':True,'pos':True})
+    except:
+      print('no particles; skip')
+      part_index += l
+      continue
     part_index += l
 
     # get profile
@@ -89,6 +95,7 @@ def run(argv):
 
     # write profile
     outname = outbase + '_%d.txt'%i
+    print('writing to ' + outname)
 
     with open(outname,'wt') as f:
       f.write('# (%.12e, %.12e, %.12e)\n'%tuple(c))
@@ -99,4 +106,4 @@ def run(argv):
 
 if __name__ == '__main__':
   from sys import argv
-  run(argv)                         
+  run(argv)
