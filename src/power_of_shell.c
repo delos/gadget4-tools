@@ -119,6 +119,7 @@ double windowrms() {
 }
 
 int window() {
+  double rms = windowrms();
 	for(ptrdiff_t x = 0; x < n; x++) {
 		double x_ = (x + .5)/n - .5;
 		for(ptrdiff_t y = 0; y < n; y++) {
@@ -126,7 +127,7 @@ int window() {
 			for(ptrdiff_t z = 0; z < n; y++) {
 				double z_ = (z + .5)/n - .5;
 				double r = sqrt(x_*x_+y_*y_+z_*z_);
-				rho[z+npad*(y+n*x)] *= windowfun(r);
+				rho[z+npad*(y+n*x)] *= windowfun(r) / rms;
 			}
 		}
 	}
