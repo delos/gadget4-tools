@@ -10,5 +10,3 @@ all: power_of_shell
 power_of_shell: power_of_shell.c
 	g++ $(FFTW_INCL) $(FFTW_LIBS) -o power_of_shell power_of_shell.c
 
-clean:
-  -rm -f power_of_shell
