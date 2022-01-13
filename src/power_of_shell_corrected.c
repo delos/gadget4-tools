@@ -7,8 +7,6 @@
 #include <sys/stat.h>
 #include <fftw3.h>
 
-//#define TEST_WINDOW
-
 static ptrdiff_t n, n3, npad, n3pad, n1d;
 static float *rho, *shot;
 static double *k, *pk, R, T, pkshot;
@@ -21,15 +19,7 @@ double sinc(double x) {
 double windowfun(double r) {
   double x = (r-R)/T;
   if(x>1. || x<-1.) return 0.;
-  return 0.5 * ( 1 - cos(M_PI*(x+1.)) );
-}
-
-double windowmean() {
-  return 4*M_PI*R*R*T + (4*(-6 + M_PI*M_PI)*T*T*T)/(3.*M_PI);
-}
-
-double windowrms() {
-  return sqrt((M_PI*T*(6*R*R + (2 - 15/(M_PI*M_PI))*T*T))/2.);
+  return 0.5 * ( 1 - cos(M_PI*(x+1.)) ) / (r*r);
 }
 
 int read_shot(char *filename) {
@@ -53,7 +43,7 @@ int read_shot(char *filename) {
 
 int compute_pkshot() {
   printf("computing sum(m^2) with window between %lg and %lg\n",R-T,R+T);
-  double rms = windowrms();
+  double sumsq = 0.;
   pkshot = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
     double x_ = (x + .5)/n - .5;
@@ -62,12 +52,13 @@ int compute_pkshot() {
       for(ptrdiff_t z = 0; z < n; z++) {
         double z_ = (z + .5)/n - .5;
         double r = sqrt(x_*x_+y_*y_+z_*z_);
-        double w = windowfun(r) / rms;
+        double w = windowfun(r);
         pkshot += shot[z+n*(y+n*x)]*w*w;
+        sumsq += w*w;
       }
     }
   }
-  pkshot /= n3;
+  pkshot /= sumsq;
   return 0;
 }
 
@@ -183,12 +174,7 @@ int clean() {
 
 int window() {
   printf("windowing density field between %lg and %lg\n",R-T,R+T);
-  double rms = windowrms();
-#ifdef TEST_WINDOW
-  double test_sum2 = 0.;
-  double test_sum = 0.;
-  ptrdiff_t test_ct = 0.;
-#endif
+  double sumsq = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
     double x_ = (x + .5)/n - .5;
     for(ptrdiff_t y = 0; y < n; y++) {
@@ -197,19 +183,19 @@ int window() {
         double z_ = (z + .5)/n - .5;
         double r = sqrt(x_*x_+y_*y_+z_*z_);
         double w = windowfun(r);
-        rho[z+npad*(y+n*x)] *= w / rms;
-#ifdef TEST_WINDOW
-        test_sum += w;
-        test_sum2 += w*w;
-        test_ct += 1;
-#endif
+        rho[z+npad*(y+n*x)] *= w;
+        sumsq += w*w;
       }
     }
   }
-#ifdef TEST_WINDOW
-  printf("window mean: %lg = %lg\n",test_sum/test_ct,windowmean());
-  printf("window rms:  %lg = %lg\n",sqrt(test_sum2/test_ct),windowrms());
-#endif
+  double rms = sqrt(sumsq/n3);
+  for(ptrdiff_t x = 0; x < n; x++) {
+    for(ptrdiff_t y = 0; y < n; y++) {
+      for(ptrdiff_t z = 0; z < n; z++) {
+        rho[z+npad*(y+n*x)] /= rms;
+      }
+    }
+  }
   return 0;
 }
 

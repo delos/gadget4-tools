@@ -20,16 +20,18 @@ double sinc(double x) {
 
 double windowfun(double r) {
   double x = (r-R)/T;
-  if(x>1. || x<-1.) return 0.;
-  return 0.5 * ( 1 - cos(M_PI*(x+1.)) );
+  if(x>.5 || x<-.5) return 0.;
+  return 1.;
 }
 
 double windowmean() {
+  double V1 = 4.*M_PI/3. * (R-.5*T);
+  double V2 = 4.*M_PI/3. * (R+.5*T);
   return 4*M_PI*R*R*T + (4*(-6 + M_PI*M_PI)*T*T*T)/(3.*M_PI);
 }
 
 double windowrms() {
-  return sqrt((M_PI*T*(6*R*R + (2 - 15/(M_PI*M_PI))*T*T))/2.);
+  return sqrt(windowmean());
 }
 
 int read_shot(char *filename) {
@@ -52,7 +54,7 @@ int read_shot(char *filename) {
 }
 
 int compute_pkshot() {
-  printf("computing sum(m^2) with window between %lg and %lg\n",R-T,R+T);
+  printf("computing sum(m^2) with window between %lg and %lg\n",R-.5*T,R+.5*T);
   double rms = windowrms();
   pkshot = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
@@ -182,7 +184,7 @@ int clean() {
 }
 
 int window() {
-  printf("windowing density field between %lg and %lg\n",R-T,R+T);
+  printf("windowing density field between %lg and %lg\n",R-.5*T,R+.5*T);
   double rms = windowrms();
 #ifdef TEST_WINDOW
   double test_sum2 = 0.;
