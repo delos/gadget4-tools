@@ -8,8 +8,8 @@
 #include <fftw3.h>
 
 static ptrdiff_t n, n3, npad, n3pad, n1d;
-static float *rho, *shot;
-static double *k, *pk, R, T, pkshot;
+static float *rho;
+static double *k, *pk, R, T;
 
 double sinc(double x) {
   if(x > 0.1) return sin(x)/x;
@@ -19,54 +19,7 @@ double sinc(double x) {
 double windowfun(double r) {
   double x = (r-R)/T;
   if(x>1. || x<-1.) return 0.;
-  return 0.5 * ( 1 - cos(M_PI*(x+1.)) ) / (r*r);
-}
-
-int read_shot(char *filename) {
-
-  struct stat st;
-  stat(filename, &st);
-  n3 = st.st_size/sizeof(float);
-  n = (int)(pow(n3,1./3)+.5);
-
-  printf("reading file %s (n=%ld)\n",filename,n);
-  FILE *fp = fopen(filename, "rb");
-
-  shot = (float *)malloc(sizeof(float)*n3);
-
-  fread(shot,sizeof(float),n3,fp);
-
-  fclose(fp);
-
-  return 0;
-}
-
-int compute_pkshot() {
-  printf("computing sum(m^2) with window between %lg and %lg\n",R-T,R+T);
-  double sumsq = 0.;
-  pkshot = 0.;
-  for(ptrdiff_t x = 0; x < n; x++) {
-    double x_ = (x + .5)/n - .5;
-    for(ptrdiff_t y = 0; y < n; y++) {
-      double y_ = (y + .5)/n - .5;
-      for(ptrdiff_t z = 0; z < n; z++) {
-        double z_ = (z + .5)/n - .5;
-        double r = sqrt(x_*x_+y_*y_+z_*z_);
-        double w = windowfun(r);
-        pkshot += shot[z+n*(y+n*x)]*w*w;
-        sumsq += w*w;
-      }
-    }
-  }
-  pkshot /= sumsq;
-  return 0;
-}
-
-int get_pkshot(char *filename) {
-  read_shot(filename);
-  compute_pkshot();
-  free(shot);
-  return 0;
+  return (1 - cos(M_PI*(1.+x)))/(2.*sqrt(3*M_PI*T)*r);
 }
 
 int read_rho(char *filename) {
@@ -78,7 +31,7 @@ int read_rho(char *filename) {
   npad = 2*(n/2+1);
   n3pad = n*n*npad;
 
-  printf("reading file %s (n=%ld)\n",filename,n);
+  printf("reading file %s (%td elements -> n=%td)\n",filename,n3,n);
   FILE *fp = fopen(filename, "rb");
 
   rho = (float *)fftwf_malloc(sizeof(float)*n3pad);
@@ -156,7 +109,7 @@ int save(char *filename) {
   printf("saving to %s\n",filename);
   FILE *fp = fopen(filename,"w");
   fprintf(fp,"# R=%lg\n# T=%lg\n",R,T);
-  fprintf(fp,"# %le\n",pkshot);
+  fprintf(fp,"# 0\n");
   for(int i=0; i<n1d; i++) {
     fprintf(fp,"%le %le\n",k[i],pk[i]);
   }
@@ -174,7 +127,6 @@ int clean() {
 
 int window() {
   printf("windowing density field between %lg and %lg\n",R-T,R+T);
-  double sumsq = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
     double x_ = (x + .5)/n - .5;
     for(ptrdiff_t y = 0; y < n; y++) {
@@ -184,15 +136,6 @@ int window() {
         double r = sqrt(x_*x_+y_*y_+z_*z_);
         double w = windowfun(r);
         rho[z+npad*(y+n*x)] *= w;
-        sumsq += w*w;
-      }
-    }
-  }
-  double rms = sqrt(sumsq/n3);
-  for(ptrdiff_t x = 0; x < n; x++) {
-    for(ptrdiff_t y = 0; y < n; y++) {
-      for(ptrdiff_t z = 0; z < n; z++) {
-        rho[z+npad*(y+n*x)] /= rms;
       }
     }
   }
@@ -201,22 +144,20 @@ int window() {
 
 int main(int argc, char **argv)
 {
-  if(argc<6) {
-    printf("usage: exe <density-file> <shot-file> <radius> <thickness> <out-file>\n");
+  if(argc<5) {
+    printf("usage: exe <density-file> <radius> <thickness> <out-file>\n");
     return 1;
   }
 
-  R = atof(argv[3]);
-  T = atof(argv[4]);
-
-  get_pkshot(argv[2]);
+  R = atof(argv[2]);
+  T = atof(argv[3]);
 
   read_rho(argv[1]);
 
   window();
 
   power();
-  save(argv[5]);
+  save(argv[4]);
   clean();
 
   return 0;

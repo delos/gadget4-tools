@@ -19,7 +19,7 @@ double sinc(double x) {
 double windowfun(double r) {
   double x = (r-R)/T;
   if(x>1. || x<-1.) return 0.;
-  return 0.5 * ( 1 - cos(M_PI*(x+1.)) ) / (r*r);
+  return (1 - cos(M_PI*(1.+x)))/(2.*sqrt(3*M_PI*T)*r);
 }
 
 int read_shot(char *filename) {
@@ -43,7 +43,6 @@ int read_shot(char *filename) {
 
 int compute_pkshot() {
   printf("computing sum(m^2) with window between %lg and %lg\n",R-T,R+T);
-  double sumsq = 0.;
   pkshot = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
     double x_ = (x + .5)/n - .5;
@@ -54,11 +53,9 @@ int compute_pkshot() {
         double r = sqrt(x_*x_+y_*y_+z_*z_);
         double w = windowfun(r);
         pkshot += shot[z+n*(y+n*x)]*w*w;
-        sumsq += w*w;
       }
     }
   }
-  pkshot /= sumsq;
   return 0;
 }
 
@@ -174,7 +171,6 @@ int clean() {
 
 int window() {
   printf("windowing density field between %lg and %lg\n",R-T,R+T);
-  double sumsq = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
     double x_ = (x + .5)/n - .5;
     for(ptrdiff_t y = 0; y < n; y++) {
@@ -184,15 +180,6 @@ int window() {
         double r = sqrt(x_*x_+y_*y_+z_*z_);
         double w = windowfun(r);
         rho[z+npad*(y+n*x)] *= w;
-        sumsq += w*w;
-      }
-    }
-  }
-  double rms = sqrt(sumsq/n3);
-  for(ptrdiff_t x = 0; x < n; x++) {
-    for(ptrdiff_t y = 0; y < n; y++) {
-      for(ptrdiff_t z = 0; z < n; z++) {
-        rho[z+npad*(y+n*x)] /= rms;
       }
     }
   }
