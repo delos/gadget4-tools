@@ -9,7 +9,7 @@
 
 static ptrdiff_t n, n3, npad, n3pad, n1d;
 static float *rho;
-static double *k, *pk, R, T;
+static double *k, *pk, R, T, rhomean;
 
 double sinc(double x) {
   if(x > 0.1) return sin(x)/x;
@@ -110,6 +110,7 @@ int save(char *filename) {
   FILE *fp = fopen(filename,"w");
   fprintf(fp,"# R=%lg\n# T=%lg\n",R,T);
   fprintf(fp,"# 0\n");
+  fprintf(fp,"# %lg\n",rhomean);
   for(int i=0; i<n1d; i++) {
     fprintf(fp,"%le %le\n",k[i],pk[i]);
   }
@@ -127,6 +128,8 @@ int clean() {
 
 int window() {
   printf("windowing density field between %lg and %lg\n",R-T,R+T);
+  double wsum = 0.;
+  double rhosum = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
     double x_ = (x + .5)/n - .5;
     for(ptrdiff_t y = 0; y < n; y++) {
@@ -136,9 +139,12 @@ int window() {
         double r = sqrt(x_*x_+y_*y_+z_*z_);
         double w = windowfun(r);
         rho[z+npad*(y+n*x)] *= w;
+        rhosum += rho[z+npad*(y+n*x)];
+        wsum += w;
       }
     }
   }
+  rhomean = rhosum / wsum;
   return 0;
 }
 
