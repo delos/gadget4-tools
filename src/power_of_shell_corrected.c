@@ -52,7 +52,7 @@ int compute_pkshot() {
         double z_ = (z + .5)/n - .5;
         double r = sqrt(x_*x_+y_*y_+z_*z_);
         double w = windowfun(r);
-        pkshot += shot[z+n*(y+n*x)]*w*w;
+        pkshot += shot[z+n*(y+n*x)]*w*w/n3;
       }
     }
   }
