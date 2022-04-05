@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import h5py
 from pathlib import Path
 
-def group_data(fileprefix,opts={'mass':True,'len':False,'pos':False}):
+def group_data(fileprefix,opts={'mass':True,'rad':False,'len':False,'pos':False}):
 
   '''
   
@@ -19,6 +19,8 @@ def group_data(fileprefix,opts={'mass':True,'len':False,'pos':False}):
   Returns:
     
     mass: SO mass M_200m
+
+    rad: SO radius R_200m
 
     length: group particle count
 
@@ -48,6 +50,8 @@ def group_data(fileprefix,opts={'mass':True,'len':False,'pos':False}):
   fileinst = 0
   if opts.get('mass'):
     mass = []
+  if opts.get('rad'):
+    rad = []
   if opts.get('len'):
     length = []
   if opts.get('pos'):
@@ -69,6 +73,8 @@ def group_data(fileprefix,opts={'mass':True,'len':False,'pos':False}):
 
       if opts.get('mass'):
         mass += [np.array(f['Group/Group_M_Mean200'])]
+      if opts.get('rad'):
+        rad += [np.array(f['Group/Group_R_Mean200'])]
       if opts.get('len'):
         length += [np.array(f['Group/GroupLen'])]
       if opts.get('pos'):
@@ -81,6 +87,9 @@ def group_data(fileprefix,opts={'mass':True,'len':False,'pos':False}):
   if opts.get('mass'):
     mass = np.concatenate(mass)
     ret += [mass]
+  if opts.get('rad'):
+    rad = np.concatenate(rad)
+    ret += [rad]
   if opts.get('len'):
     length = np.concatenate(length)
     ret += [length]
@@ -99,13 +108,14 @@ def run(argv):
   count = int(argv[2])
 
   # read halos
-  mass,length,pos,header = group_data(argv[1],opts={'mass':True,'len':True,'pos':True})
+  mass,rad,length,pos,header = group_data(argv[1],opts={'mass':True,'rad':True,'len':True,'pos':True})
 
   num = np.arange(len(mass))
 
   # sort halos by mass
   sort = np.argsort(mass)[::-1]
   mass = mass[sort]
+  rad = rad[sort]
   length = length[sort]
   pos = pos[sort]
 
@@ -116,10 +126,16 @@ def run(argv):
   else:
     count = min(count,num.size)
 
-  print('# number   mass      x/box    y/box    z/box  length')
+  boxdig = int(np.log10(BoxSize)+.5)
+  if 0 <= boxdig < 8:
+    fmt = '%9.' + '%df'%(7-boxdig)
+  else:
+    fmt = '%.6e'
+
+  print('# BoxSize = ' + fmt%BoxSize)
+  print('# number, mass, x, y, z, r, length')
   for i in range(count):
-    print('%6d   %.3e %.6f %.6f %.6f  %d'%(num[i],mass[i],
-      pos[i,0]/BoxSize,pos[i,1]/BoxSize,pos[i,2]/BoxSize,length[i]))
+    print('%6d %.3e '%(num[i],mass[i]) + ' '.join(fmt%x for x in pos[i]) + ' ' + fmt%rad[i] + ' %9d'%length[i])
 
 if __name__ == '__main__':
   from sys import argv

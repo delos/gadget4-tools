@@ -1,6 +1,5 @@
 import numpy as np
 from numba import njit
-from snapshot_functions import read_particles_filter
 from pathlib import Path
 import h5py
 

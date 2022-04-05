@@ -8,7 +8,7 @@ cmap = cm.viridis
 def run(argv):
   
   if len(argv) < 2:
-    print('python script.py <filename> [projection axis=2] [log=1]')
+    print('python script.py <filename> [projection axis=2] [log=1] [project square=0]')
     return 1
   
   filename = argv[1]
@@ -17,6 +17,8 @@ def run(argv):
   else: axis = 2
   if len(argv) > 3: log = int(argv[3])
   else: log = 1
+  if len(argv) > 4: sq = int(argv[4])
+  else: sq = 0
 
   dsize = os.stat(filename).st_size//4
   GridSize = int(dsize**(1./3)+.5)
@@ -29,7 +31,10 @@ def run(argv):
   print('min = %f'%delta.min())
   print('sigma = %f'%(np.mean(delta**2)**0.5))
 
-  delta = np.mean(delta,axis=axis) # project
+  if sq:
+    delta = np.sqrt(np.mean(delta**2,axis=axis))
+  else:
+    delta = np.mean(delta,axis=axis) # project
 
   if log:
     np.log10(1+delta,out=delta)
