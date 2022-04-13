@@ -2,6 +2,8 @@ import numpy as np
 from numba import njit
 
 def center(ID,GridSize):
+
+  # ID to grid position
   x, xr = np.divmod(ID-1,GridSize*GridSize)
   y, z  = np.divmod(xr,GridSize)
 
@@ -9,6 +11,7 @@ def center(ID,GridSize):
   y = y.astype(np.int32)
   z = z.astype(np.int32)
 
+  # pick one and center about it
   x0 = x[0]
   y0 = y[0]
   z0 = z[0]
@@ -24,15 +27,17 @@ def center(ID,GridSize):
   y[y>=GridSize//2] -= GridSize
   z[z>=GridSize//2] -= GridSize
 
+  # get center of mass
   xc = int(np.round(np.mean(x) + x0))
   yc = int(np.round(np.mean(y) + y0))
   zc = int(np.round(np.mean(z) + z0))
 
+  # now center positions about the center of mass
   x -= xc-x0
   y -= yc-y0
   z -= zc-z0
 
-  return np.array([x,y,z]).T, np.array([xc,yc,zc])
+  return np.array([x,y,z]).T, np.array([xc,yc,zc]) # (N,3), (3,)
 
 @njit
 def connect(x):
@@ -59,9 +64,13 @@ def run(argv):
 
   ID = np.fromfile(argv[1],dtype=np.uint32)
 
-  x, xc = center(ID,GridSize)
+  x, xc = center(ID,GridSize) # box positions are (x+xc)%GridSize
 
   print('center at (%d,%d,%d)'%tuple(xc))
+  print('original extent: (%d,%d,%d) to (%d,%d,%d)'%(
+    (x+xc)[:,0].min(),(x+xc)[:,1].min(),(x+xc)[:,2].min(),
+    (x+xc)[:,0].max(),(x+xc)[:,1].max(),(x+xc)[:,2].max(),
+    ))
 
   print('start with %d cells'%x.shape[0])
 
@@ -76,6 +85,11 @@ def run(argv):
   print('of which %d are unique'%(x_ext.shape[0]))
 
   x_ext += xc.reshape((1,3))
+
+  print('final extent: (%d,%d,%d) to (%d,%d,%d)'%(
+    x_ext[:,0].min(),x_ext[:,1].min(),x_ext[:,2].min(),
+    x_ext[:,0].max(),x_ext[:,1].max(),x_ext[:,2].max(),
+    ))
 
   x_ext[x_ext < 0] += GridSize
   x_ext[x_ext >= GridSize] -= GridSize
