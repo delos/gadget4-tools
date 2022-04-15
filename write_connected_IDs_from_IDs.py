@@ -90,6 +90,11 @@ def run(argv):
     x_ext[:,0].min(),x_ext[:,1].min(),x_ext[:,2].min(),
     x_ext[:,0].max(),x_ext[:,1].max(),x_ext[:,2].max(),
     ))
+  print('(%.3f,%.3f,%.3f) of box'%(
+    (x_ext[:,0].max()-x_ext[:,0].min())/GridSize,
+    (x_ext[:,1].max()-x_ext[:,1].min())/GridSize,
+    (x_ext[:,2].max()-x_ext[:,2].min())/GridSize,
+    ))
 
   x_ext[x_ext < 0] += GridSize
   x_ext[x_ext >= GridSize] -= GridSize
