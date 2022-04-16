@@ -44,13 +44,12 @@ def compute_pk(boxsize,N,Mcoef,Rcoef,alpha,Mmin,Mmax):
     np.stack((ks,ks**3/(2*np.pi**2)*Ps)).T,
     header='k (kpc^-1),  rho^2 P (Msun^2 kpc^-6)')
   print('saved power to power.txt')
-  plt.loglog(ks,ks**3/(2*np.pi**2)*Ps)
-  plt.xlabel(r'$k$')
-  plt.ylabel(r'$\bar\rho^2\mathcal{P}(k)$')
+  return ks,Ps
 
 # main
 
 def run(argv):
+  G = 4.30241002e-6 # (km/s)^2 kpc/Msun
   
   try:
     nstar = float(argv[1])
@@ -71,7 +70,7 @@ def run(argv):
   print('%d halos (%g expected)'%(N, n * boxsize**3))
 
   # masses
-  mstar = 0.5 # shouldn't matter
+  mstar = 1. # shouldn't matter. n=rho for convenience.
   m = sample_mass(N, mmin, mmax, alpha)
 
   Mcoef = mass_coef(n,mmin,mmax,alpha)
@@ -85,7 +84,7 @@ def run(argv):
   print('R = %g M^{1/3}'%Rcoef)
 
   # power
-  compute_pk(boxsize,Nstar,Mcoef,Rcoef,alpha,mmin,mmax)
+  k,P = compute_pk(boxsize,Nstar,Mcoef,Rcoef,alpha,mmin,mmax)
   
   # gaussian velocities
   s = sigma / np.sqrt(3.) # 3D -> 1D
@@ -168,7 +167,7 @@ def run(argv):
     f.write('OutputListOn             0\n')
     f.write('OutputListFilename       outputs.txt\n')
     f.write('TimeOfFirstSnapshot      0.0\n')
-    f.write('TimeBetSnapshot          %.5e\n'%t)
+    f.write('TimeBetSnapshot          %.5e\n'%(t*.1))
     f.write('TimeBetStatistics        %.5e\n'%t)
     f.write('DesNumNgb                64\n')
     f.write('MaxNumNgbDeviation       2\n')
@@ -195,6 +194,12 @@ def run(argv):
     f.write('NSOFTCLASSES=%d\n'%(NR+2))
     f.write('DOUBLEPRECISION=1\n')
 
+  np.savez('params.npz',box=boxsize,s=s,n=nstar)
+  plt.loglog(k,4*2**.5*np.pi**3*G**2/(s**4*k**4)*P)
+  plt.axhline(1./nstar,color='k',ls='--')
+  plt.loglog(k,2*np.pi**2/k**3,'k:')
+  plt.xlabel(r'$k$')
+  plt.ylabel(r'$P(k)$')
   plt.show()
   return
 
