@@ -22,10 +22,12 @@ def run(argv):
 
   dsize = os.stat(filename).st_size//4
   GridSize = int(dsize**(1./3)+.5)
+  print('%d^3 grid'%GridSize)
   with open(filename,'rb') as f:
     delta = np.fromfile(f,count=-1,dtype=np.float32)
   delta.shape = (GridSize,GridSize,GridSize)
   bins = np.arange(GridSize+1)
+
 
   print('max = %f'%delta.max())
   print('min = %f'%delta.min())

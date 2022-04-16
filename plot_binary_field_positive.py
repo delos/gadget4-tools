@@ -22,6 +22,7 @@ def run(argv):
 
   dsize = os.stat(filename).st_size//4
   GridSize = int(dsize**(1./3)+.5)
+  print('%d^3 grid'%GridSize)
   with open(filename,'rb') as f:
     rho = np.fromfile(f,count=-1,dtype=np.float32)
   rho.shape = (GridSize,GridSize,GridSize)
@@ -32,8 +33,8 @@ def run(argv):
   print('sigma = %f'%(np.mean(rho**2)**0.5))
 
   if sq:
-    rho = np.sqrt(np.mean(rho**2,axis=axis)))
-   else:
+    rho = np.sqrt(np.mean(rho**2,axis=axis))
+  else:
     rho = np.mean(rho,axis=axis) # project
 
   if log:
