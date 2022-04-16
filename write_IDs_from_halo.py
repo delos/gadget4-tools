@@ -25,11 +25,13 @@ def halo_IDs(snap,groupfile,group):
   print('group position = (%.6e,%.6e,%.6e)'%tuple(gpos))
   print('group radius = %.6e'%grad)
 
+  # get positions centered on group
   pos, ID, _ = gadget_to_particles(snap,opts={'pos':True,'vel':False,'ID':True,'mass':False})
   pos -= gpos[:,True]
 
   center_periodic(pos,header['BoxSize'])
 
+  # cut IDs whose positions lie outside group radius
   count = reduce_IDs(grad,pos,ID)
   ID.resize(count,refcheck=False)
 
