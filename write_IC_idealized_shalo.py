@@ -195,11 +195,11 @@ def run(argv):
     f.write('DOUBLEPRECISION=1\n')
 
   np.savez('params.npz',box=boxsize,s=s,n=nstar)
-  plt.loglog(k,4*2**.5*np.pi**3*G**2/(s**4*k**4)*P)
-  plt.axhline(1./nstar,color='k',ls='--')
-  plt.loglog(k,2*np.pi**2/k**3,'k:')
+  plt.loglog(k,4*2**.5*np.pi**3*G**2/(s**4*k**4)*k**3/(2*np.pi**2)*P)
+  plt.loglog(k,k**3/(2*np.pi**2)/nstar,color='k',ls='--')
+  plt.axhline(1,ls=':',color='k')
   plt.xlabel(r'$k$')
-  plt.ylabel(r'$P(k)$')
+  plt.ylabel(r'$\mathcal{P}(k)$')
   plt.show()
   return
 
