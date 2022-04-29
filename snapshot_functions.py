@@ -421,15 +421,18 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
       ScaleFactor = 1./(1+header['Redshift'])
       numfiles = header['NumFiles']
 
+      # is subhalo in this file?
       if hinst + header['Nsubhalos_ThisFile'] > subhalo_number:
         index = subhalo_number - hinst
 
+        # get some data for the subhalo
         pos = np.array(f['Subhalo/SubhaloPos'])[index]
         vel = np.array(f['Subhalo/SubhaloVel'])[index] * np.sqrt(ScaleFactor)
         ID = {'group':np.array(f['Subhalo/SubhaloGroupNr'])[index],
           'subhalo':subhalo_number,
           'particle':np.array(f['Subhalo/SubhaloIDMostbound'])[index]}
 
+        # get the subhalo and group mass. Group mass might be in an earlier file.
         if ID['group']>=ginst:
           mass = {'group':np.array(f['Group/GroupMass'])[ID['group']-ginst],
             'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
@@ -447,6 +450,7 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
                 mass = {'group':np.array(f2['Group/GroupMass'])[ID['group']-ginst2],
                   'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
 
+        # get best-matching descendent (decided already by SUBFIND)
         try:
           with h5py.File(filename_desc, 'r') as fd:
             print('reading %s'%filename_desc)
@@ -457,6 +461,7 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
           print(str(e))
           desc = -1
 
+        # get best-matching progenitor (decided already by SUBFIND)
         try:
           with h5py.File(filename_prog, 'r') as fp:
             print('reading %s'%filename_prog)
@@ -469,6 +474,7 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
 
         break
 
+      # advance halo and group indices as we advance in file number
       hinst += int(header['Nsubhalos_ThisFile'])
       ginst += int(header['Ngroups_ThisFile'])
 
