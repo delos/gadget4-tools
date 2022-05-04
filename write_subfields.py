@@ -54,7 +54,7 @@ def cic_bin(x,BoxSize,GridSize,weights,density):
 def run(argv):
   
   if len(argv) < 5:
-    print('python script.py <snapshot min,max> <grid size> <x,y,z or trace-file> <r> [types=-1] [rotation-file=0] [physical=0] [out-name]')
+    print('python script.py <snapshot min,max> <grid size> <x,y,z or trace-file> <r> [types=-1] [rotation-file=0] [ID-file=0] [physical=0] [out-name]')
     return 1
 
   ssmin,ssmax = [int(x) for x in argv[1].split(',')]
@@ -93,18 +93,23 @@ def run(argv):
       rotation = None
       print('no rotation')
 
-  phys = False
   if len(argv) > 7:
-    if argv[7][0].lower() == 't': phys = True
-    elif argv[7][0].lower() == 'f': phys = False
-    elif int(argv[7]) != 0: phys = True
+    IDs = np.fromfile(argv[7],dtype=np.uint32)
+  else:
+    IDs = None
+
+  phys = False
+  if len(argv) > 8:
+    if argv[8][0].lower() == 't': phys = True
+    elif argv[8][0].lower() == 'f': phys = False
+    elif int(argv[8]) != 0: phys = True
   if phys:
     r_phys = r
     print('transform to physical')
 
   outbase = 'subfield'
-  if len(argv) > 8:
-    outbase = argv[8]
+  if len(argv) > 9:
+    outbase = argv[9]
   
   names, headers = list_snapshots()
 
@@ -134,7 +139,7 @@ def run(argv):
     if phys:
       r = r_phys / scale
 
-    pos, mass, header = read_particles_filter(filename,center=center,halfwidth=r,rotation=rotation,type_list=types,opts={'mass':True,'pos':True})
+    pos, mass, header = read_particles_filter(filename,center=center,halfwidth=r,rotation=rotation,type_list=types,ID_list=IDs,opts={'mass':True,'pos':True})
 
     pos += np.array([r,r,r]).reshape((1,3))
 

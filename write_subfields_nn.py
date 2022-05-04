@@ -33,7 +33,7 @@ def nn_density(x,BoxSize,GridSize,weights,nnk):
 def run(argv):
   
   if len(argv) < 5:
-    print('python script.py <snapshot min,max> <grid size,k> <x,y,z or trace-file> <r> [rotation-file=0] [physical=0] [out-name]')
+    print('python script.py <snapshot min,max> <grid size,k> <x,y,z or trace-file> <r> [types=-1] [rotation-file=0] [ID-file=0] [physical=0] [out-name]')
     return 1
 
   ssmin,ssmax = [int(x) for x in argv[1].split(',')]
@@ -59,10 +59,18 @@ def run(argv):
   
   r = float(argv[4])
 
+  try:
+    types = [int(x) for x in argv[5].split(',')]
+    if np.any(np.array(types)<0):
+      types = None
+    print('particle types ' + ', '.join([str(x) for x in types]))
+  except:
+    types = None
+
   rotation = None
-  if len(argv) > 5:
+  if len(argv) > 6:
     try:
-      rotation = np.loadtxt(argv[5])
+      rotation = np.loadtxt(argv[6])
       print('rotation matrix:')
       with np.printoptions(precision=3, suppress=True):
         print(rotation)
@@ -70,18 +78,23 @@ def run(argv):
       rotation = None
       print('no rotation')
 
+  if len(argv) > 7:
+    IDs = np.fromfile(argv[7],dtype=np.uint32)
+  else:
+    IDs = None
+
   phys = False
-  if len(argv) > 6:
-    if argv[6][0].lower() == 't': phys = True
-    elif argv[6][0].lower() == 'f': phys = False
-    elif int(argv[6]) != 0: phys = True
+  if len(argv) > 8:
+    if argv[8][0].lower() == 't': phys = True
+    elif argv[8][0].lower() == 'f': phys = False
+    elif int(argv[8]) != 0: phys = True
   if phys:
     r_phys = r
     print('transform to physical')
 
   outbase = 'subfield'
-  if len(argv) > 7:
-    outbase = argv[7]
+  if len(argv) > 9:
+    outbase = argv[9]
   
   names, headers = list_snapshots()
 
@@ -111,7 +124,7 @@ def run(argv):
     if phys:
       r = r_phys / scale
 
-    pos, mass, header = read_particles_filter(filename,center=center,halfwidth=r*1.1,rotation=rotation,opts={'mass':True,'pos':True})
+    pos, mass, header = read_particles_filter(filename,center=center,halfwidth=r*1.1,rotation=rotation,type_list=types,ID_list=IDs,opts={'mass':True,'pos':True})
 
     pos += np.array([r,r,r]).reshape((1,3))
 

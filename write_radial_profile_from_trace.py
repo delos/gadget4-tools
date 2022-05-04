@@ -96,7 +96,7 @@ def run(argv):
         _z[_ss==snapshot_number][0],
         ]
 
-    pos, mass, header = read_particles_filter(filename,center=center,type_list=types,opts={'mass':True,'pos':True})
+    pos, mass, header = read_particles_filter(filename,center=center,radius=rmax,type_list=types,opts={'mass':True,'pos':True})
 
     r, rho, ru, m, ct = profile(pos,mass,rmin,rmax,nr)
 
