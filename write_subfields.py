@@ -65,7 +65,7 @@ def nn_density(x,BoxSize,GridSize,weights,nnk):
   for i in range(GridSize):
     if i%(GridSize//8) == 0:
       print('%d/%d'%(i,GridSize))
-    grid = np.stack([np.full((GridSize,GridSize),i)]+np.meshgrid(*([np.arange(GridSize)]*2)),axis=-1)
+    grid = np.stack([np.full((GridSize,GridSize),i)]+np.meshgrid(*([np.arange(GridSize)]*2),indexing='ij'),axis=-1)
     # grid has shape (GridSize,GridSize,3)
     dist,index = tree.query(grid,nnk)
     # dist, index have shape (GridSize,GridSize,nnk)
@@ -122,10 +122,14 @@ def run(argv):
       rotation = None
       print('no rotation')
 
+  IDs = None
   if len(argv) > 7:
-    IDs = np.fromfile(argv[7],dtype=np.uint32)
-  else:
-    IDs = None
+    try:
+      IDs = np.fromfile(argv[7],dtype=np.uint32)
+      print('using ID file')
+    except:
+      IDs = None
+      print('no ID file')
 
   phys = False
   if len(argv) > 8:

@@ -5,8 +5,8 @@ from snapshot_functions import group_extent, read_particles_filter
 @njit
 def reduce_IDs(rmin,rmax,pos,ID):
   ID_index = 0
-  for i in range(pos.shape[1]):
-    if rmin**2 <= np.sum(pos[:,i]**2) < rmax**2:
+  for i in range(pos.shape[0]):
+    if rmin**2 <= np.sum(pos[i]**2) < rmax**2:
       ID[ID_index] = ID[i]
       ID_index += 1
   return ID_index
