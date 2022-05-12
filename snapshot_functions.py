@@ -851,7 +851,7 @@ def list_snapshots():
 
   return names, headers
 
-def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True}):
+def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True},chunksize=1048576):
 
   '''
   
@@ -865,7 +865,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
 
     rotation: 3x3 rotation matrix to apply. Requires center.
 
-    radius: filter particles within radius. Requires center.
+    radius: filter particles within radius. Requires center. If length 2, specifies (min,max).
 
     halfwidth: filter particles within box of width 2*halfwidth. Requires center.
 
@@ -878,6 +878,9 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
       Format: ([minType0,minType1,...], [maxType0+1,maxType1+1,...])
 
     opts: which fields to read and return
+
+    chunksize: restrict number of particles to handle at a time (to save memory).
+      Make as large as possible if using ID_list.
     
   Returns:
     
@@ -914,6 +917,13 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
       center = np.array(center)[None,:]
     else:
       center = np.array(center)
+
+  try:
+    rmin = radius[0]
+    rmax = radius[1]
+  except:
+    rmin = None
+    rmax = radius
 
   fileinst = 0
   if opts.get('pos'): pos = []
@@ -954,7 +964,6 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
         if NPtyp == 0:
           continue
 
-        chunksize = 1048576
         Nleft = NPtyp
         i0 = 0
 
@@ -971,20 +980,29 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
               pos_[pos_ > .5*BoxSize] -= BoxSize
               pos_[pos_ < -.5*BoxSize] += BoxSize
             if rotation is not None: pos_ = (rotation@(pos_.T)).T
-            if radius is not None:
-              idx = idx & (np.sum(pos_**2,axis=1) < radius**2)
+            if rmax is not None:
+              idx &= np.sum(pos_**2,axis=1) < rmax**2
+            if rmin is not None:
+              idx &= np.sum(pos_**2,axis=1) > rmin**2
             if halfwidth is not None:
-              idx = idx&(-halfwidth<=pos_[:,0])&(pos_[:,0]<=halfwidth)
-              idx = idx&(-halfwidth<=pos_[:,1])&(pos_[:,1]<=halfwidth)
-              idx = idx&(-halfwidth<=pos_[:,2])&(pos_[:,2]<=halfwidth)
-
-          if ID_list is not None: # filter by ID
-            ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])
-            idx = idx & np.isin(ID_,ID_list,assume_unique=True)
+              idx &= (-halfwidth<=pos_[:,0])&(pos_[:,0]<=halfwidth)
+              idx &= (-halfwidth<=pos_[:,1])&(pos_[:,1]<=halfwidth)
+              idx &= (-halfwidth<=pos_[:,2])&(pos_[:,2]<=halfwidth)
 
           if part_range is not None: # filter by position in file
-            idx = idx & (part_range[0][typ] < np.arange(i00[typ],i00[typ]+Nc))
-            idx = idx & (np.arange(i00[typ],i00[typ]+Nc) < part_range[1][typ])
+            idx &= part_range[0][typ] < np.arange(i00[typ],i00[typ]+Nc)
+            idx &= np.arange(i00[typ],i00[typ]+Nc) < part_range[1][typ]
+
+          if ID_list is not None: # filter by ID
+            # ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])
+            # idx &= np.isin(ID_,ID_list,assume_unique=True)
+            # this can be slow, so save time by doing this test
+            # only on particles that passed other tests
+            ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]
+            #print('    testing if %d IDs in list of %d'%(len(ID_),len(ID_list)))
+            idx_ID = np.isin(ID_,ID_list,assume_unique=True)
+            ID_list = ID_list[np.isin(ID_list,ID_[idx_ID],assume_unique=True,invert=True)]
+            idx[idx] &= idx_ID
 
           nread = np.sum(idx)
           nreadTot += nread
