@@ -3,6 +3,7 @@ from scipy.interpolate import interp1d
 from numba import njit
 from snapshot_functions import list_snapshots, read_particles_filter, group_extent
 from scipy.spatial import cKDTree
+#import sklearn
 
 fileprefix_subhalo = 'groups_%03d/fof_subhalo_tab_%03d'
 fileprefix_snapshot = 'snapdir_%03d/snapshot_%03d'
@@ -46,9 +47,16 @@ def run(argv):
   names, headers = list_snapshots()
   for i, filename in enumerate(names):
     snapshot_number = int(filename[-3:])
+    ssprev = __ss_prev[__ss==snapshot_number][0]
+    ss0 = np.floor(ssprev).astype(np.int32)
+    ss1 = np.ceil(ssprev).astype(np.int32)
+    f = ssprev - ss0
 
-    if snapshot_number < max(ssmin,_ss[0]) or snapshot_number > min(ssmax,_ss[-1]):
+    if ss0 < _ss[0] or snapshot_number < ssmin or snapshot_number > min(ssmax,_ss[-1]):
       continue
+
+    print('snapshot = %d, previous snapshot = %.3f (%d, %d, %.3f)'%(snapshot_number,ssprev,ss0,ss1,f))
+
     groupfile = fileprefix_subhalo%(snapshot_number,snapshot_number)
     group = int(_grp[_ss==snapshot_number][0])
 
@@ -58,12 +66,6 @@ def run(argv):
 
     IDs, header = read_particles_filter(filename,center=gpos,radius=grad,opts={'ID':True,})
     print('%d particles in halo'%len(IDs))
-
-    ssprev = __ss_prev[__ss==snapshot_number][0]
-    ss0 = np.floor(ssprev).astype(np.int32)
-    ss1 = np.ceil(ssprev).astype(np.int32)
-    f = ssprev - ss0
-    print('previous snapshot = %.3f (%d, %d, %.3f)'%(ssprev,ss0,ss1,f))
 
     agg_mass = []
     agg_rho = []
@@ -77,9 +79,27 @@ def run(argv):
       pos, mass, header = read_particles_filter(ssfile,center=gp,radius=(gr,None),ID_list=IDs,
         opts={'mass':True,'pos':True},chunksize=2147483648)
 
+      N = mass.size
+      print('building tree (%d particles)'%N)
       tree = cKDTree(pos)
-      dist,index = tree.query(pos,nnk)
-      rho = np.sum(mass[index],axis=-1)/(4./3*np.pi*dist[:,-1]**3)
+      print('querying nearest neighbors')
+
+      rho = np.zeros_like(mass)
+
+      chunksize = 1024**2
+      istart = 0
+      thresh = 0.
+      while True:
+        iend = min(istart+chunksize,N)
+        dist,index = tree.query(pos[istart:iend],nnk)
+        #tree = sklearn.neighbors.KDTree(pos[istart:iend])
+        #dist,index = tree.query(pos,nnk)
+        rho[istart:iend] = np.sum(mass[index],axis=-1)/(4./3*np.pi*dist[:,-1]**3)
+        if iend >= N:
+          break
+        print('  %d/%d'%(iend,N))
+        istart = iend
+
       
       agg_mass += [np.sum(mass)]
       agg_rho += [np.sum(rho*mass)/np.sum(mass)]
