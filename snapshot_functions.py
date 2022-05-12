@@ -1015,10 +1015,10 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     fileinst += 1
 
   ret = []
-  if opts.get('pos'): ret += [np.concatenate(pos,axis=0)]
-  if opts.get('vel'): ret += [np.concatenate(vel,axis=0)]
-  if opts.get('mass'): ret += [np.concatenate(mass)]
-  if opts.get('ID'): ret += [np.concatenate(ID)]
+  if opts.get('pos'): ret += [np.concatenate(pos,axis=0)] if len(pos) > 0 else [np.empty((0,3))]
+  if opts.get('vel'): ret += [np.concatenate(vel,axis=0)] if len(vel) > 0 else [np.empty((0,3))]
+  if opts.get('mass'): ret += [np.concatenate(mass)] if len(mass) > 0 else [np.empty(0)]
+  if opts.get('ID'): ret += [np.concatenate(ID)] if len(ID) > 0 else [np.empty(0,dtype=np.uint32)]
   ret += [header]
 
   return tuple(ret)
