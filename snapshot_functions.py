@@ -759,6 +759,85 @@ def group_extent(fileprefix,group,size_definition='TopHat200'):
 
   return pos, radius, header
 
+def group_data(fileprefix,group,size_definition='Mean200'):
+
+  '''
+  
+  Return position, radius, mass of a group from a GADGET HDF5 FOF file (SUBFIND required).
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., fof_tab_000, not fof_tab_000.0.hdf5)
+
+    group: group number
+
+    size_definition: 'Crit200', 'Crit500', 'Mean200' (default), or 'TopHat200'
+    
+  Returns:
+    
+    pos: shape (3,), comoving
+    
+    radius
+
+    mass
+    
+    header: a dict with header info, use list(header) to see the fields
+    
+  '''
+
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  fileinst = 0
+  hinst = 0
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      numfiles = header['NumFiles']
+
+      if hinst + header['Ngroups_ThisFile'] > group:
+        index = group - hinst
+
+        pos = np.array(f['Group/GroupPos'])[index]
+        radius = np.array(f['Group/Group_R_'+size_definition])[index]
+        mass = np.array(f['Group/Group_M_'+size_definition])[index]
+
+        break
+
+      hinst += int(header['Ngroups_ThisFile'])
+
+    fileinst += 1
+  else:
+    print('Warning: halo %d not found'%group)
+    pos = np.zeros(3)
+    radius = 0.
+    mass = 0.
+
+  return pos, radius, mass, header
+
 def count_halos():
 
   '''
@@ -851,7 +930,7 @@ def list_snapshots():
 
   return names, headers
 
-def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True},chunksize=1048576):
+def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False},chunksize=1048576):
 
   '''
   
@@ -891,6 +970,10 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     ID: ID array, shape (NP,)
     
     mass: mass array, shape (NP,)
+
+    index: array of particle indices within snapshot, shape (NP,)
+
+    type: array of particle types, shape (NP,)
     
     header: a dict with header info, use list(header) to see the fields
   
@@ -930,13 +1013,18 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
   if opts.get('vel'): vel = []
   if opts.get('mass'): mass = []
   if opts.get('ID'): ID = []
+  if opts.get('index'): index = []
+  if opts.get('type'): ptype = []
+  header = None
   while fileinst < numfiles:
+
+    if header is not None and ID_list is not None and len(ID_list) == 0:
+      break
 
     if numfiles == 1:
       filename = filebase
     else:
       filename = filebase%fileinst
-
 
     with h5py.File(filename, 'r') as f:
       print('reading %s'%filename)
@@ -1001,7 +1089,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
             ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]
             #print('    testing if %d IDs in list of %d'%(len(ID_),len(ID_list)))
             idx_ID = np.isin(ID_,ID_list,assume_unique=True)
-            ID_list = ID_list[np.isin(ID_list,ID_[idx_ID],assume_unique=True,invert=True)]
+            ID_list = np.array(ID_list)[np.isin(ID_list,ID_[idx_ID],assume_unique=True,invert=True)]
             idx[idx] &= idx_ID
 
           nread = np.sum(idx)
@@ -1024,6 +1112,10 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
               if ID_list is None:
                 ID += [np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]]
               else: ID += [ID_[idx]]
+            if opts.get('index'):
+              index += [np.arange(i00[typ],i00[typ]+Nc,dtype=np.int64)[idx]]
+            if opts.get('type'):
+              ptype += [np.full(np.sum(idx),typ)]
 
           Nleft -= Nc
           i0 += Nc
@@ -1037,6 +1129,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
   if opts.get('vel'): ret += [np.concatenate(vel,axis=0)] if len(vel) > 0 else [np.empty((0,3))]
   if opts.get('mass'): ret += [np.concatenate(mass)] if len(mass) > 0 else [np.empty(0)]
   if opts.get('ID'): ret += [np.concatenate(ID)] if len(ID) > 0 else [np.empty(0,dtype=np.uint32)]
+  if opts.get('index'): ret += [np.concatenate(index)] if len(index) > 0 else [np.empty(0,dtype=np.uint32)]
+  if opts.get('type'): ret += [np.concatenate(ptype)] if len(ptype) > 0 else [np.empty(0,dtype=np.uint32)]
   ret += [header]
 
   return tuple(ret)
@@ -1131,3 +1225,46 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
 
   return tuple(ret)
 
+def read_params(fileprefix):
+
+  '''
+  
+  Read params from any HDF5 output.
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
+
+  Returns:
+    
+    params: a dict with params
+
+  
+  '''
+
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  if numfiles == 1:
+    filename = filebase
+  else:
+    filename = filebase%0
+
+  with h5py.File(filename, 'r') as f:
+    params = dict(f['Parameters'].attrs)
+
+  return params
