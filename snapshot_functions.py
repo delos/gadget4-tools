@@ -1268,3 +1268,108 @@ def read_params(fileprefix):
     params = dict(f['Parameters'].attrs)
 
   return params
+
+
+def particle_subhalo_data(fileprefix,index,ptype):
+
+  '''
+
+  UNFINISHED
+  
+  Get subhalo/group membership data for particles.
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., fof_subhalo_tab_000, not fof_subhalo_tab_000.0.hdf5)
+
+    index: SORTED particle indices within corresponding snapshot
+
+    ptype: particle types within corresponding snapshot
+
+  Returns:
+    
+    subhalo_number
+
+    subhalo_mass
+
+    group_number
+
+    group_mass
+    
+  '''
+
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  fileinst = 0
+  subhalonum = []
+  subhalomass = []
+  groupnum = []
+  groupmass = []
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      ScaleFactor = 1./(1+header['Redshift'])
+      numfiles = header['NumFiles']
+
+      group += [np.array(f['Subhalo/SubhaloGroupNr'])]
+      rank += [np.array(f['Subhalo/SubhaloRankInGr'])]
+      parentrank += [np.array(f['Subhalo/SubhaloParentRank'])]
+      if parttype is None:
+        if opts.get('mass'):
+          mass += [np.array(f['Subhalo/SubhaloMass'])]
+          _groupmass += [np.array(f['Group/GroupMass'])]
+        if opts.get('len'):
+          length += [np.array(f['Subhalo/SubhaloLen'])]
+          _grouplength += [np.array(f['Group/GroupLen'])]
+      else:
+        if opts.get('mass'):
+          mass += [np.array(f['Subhalo/SubhaloMassType'][:,parttype])]
+          _groupmass += [np.array(f['Group/GroupMassType'][:,parttype])]
+        if opts.get('len'):
+          length += [np.array(f['Subhalo/SubhaloLenType'][:,parttype])]
+          _grouplength += [np.array(f['Group/GroupLenType'][:,parttype])]
+      if opts.get('pos'):
+        pos += [np.array(f['Subhalo/SubhaloPos'])]
+        _grouppos += [np.array(f['Group/GroupPos'])]
+
+    fileinst += 1
+
+  group = np.concatenate(group)
+
+  ret = [group, np.concatenate(rank), np.concatenate(parentrank)]
+
+  if opts.get('mass'):
+    groupmass = np.concatenate(_groupmass)[group]
+    ret += [np.concatenate(mass), groupmass]
+  if opts.get('len'):
+    grouplength = np.concatenate(_grouplength)[group]
+    ret += [np.concatenate(length), grouplength]
+  if opts.get('pos'):
+    grouppos = np.concatenate(_grouppos,axis=0)[group]
+    ret += [np.concatenate(pos), grouppos]
+
+  return tuple(ret + [header])

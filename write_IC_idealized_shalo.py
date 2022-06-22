@@ -78,6 +78,8 @@ def run(argv):
   print('dn/dM = %g M^-%f  from  %e to %e'%(Mcoef,alpha,mmin,mmax))
   print('mean halo mass = %e (%e)'%(Mmean,mean_mass(mmin,mmax,alpha)))
 
+  rho_mean = Mmean * N / boxsize**3
+
   # radii
   M_over_R3 = rho * 343.*np.pi/125.
   Rcoef = M_over_R3**(-1./3)
@@ -94,6 +96,8 @@ def run(argv):
   print('3D velocity dispersion = %g => 1D velocity dispersion = %g'%(sigma,s))
   print('  stars: %g'%(np.sqrt(np.mean(vstar**2))))
   print('  halos: %g'%(np.sqrt(np.mean(v**2))))
+
+  print('  k_J L = %f'%(np.sqrt(4*np.pi*G*rho_mean)/sigma*boxsize))
 
   # uniformly distribute positions
   xstar = np.random.uniform(0,boxsize,(Nstar,3))
