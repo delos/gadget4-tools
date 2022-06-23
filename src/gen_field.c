@@ -359,7 +359,7 @@ int main(int argc, char **argv)
   alloc_local = fftwf_mpi_local_size_3d(n,n,npad/2, MPI_COMM_WORLD, &local_n0, &local_0_start);
   rhogrid = (float *)fftwf_alloc_real(alloc_local*2);
   fft_of_rhogrid = (fftwf_complex *)rhogrid;
-  fft_inverse_plan = fftwf_mpi_plan_dft_c2r_3d(n,n,n,fft_of_rhogrid,rhogrid,MPI_COMM_WORLD,FFTW_ESTIMATE);
+  fft_inverse_plan = fftwf_mpi_plan_dft_c2r_3d(n,n,n,fft_of_rhogrid,rhogrid,MPI_COMM_WORLD,FFTW_ESTIMATE|FFTW_MPI_TRANSPOSED_IN);
 
   if(!my_id) {printf("grid initialized\n");fflush(stdout);}
 
