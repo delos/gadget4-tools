@@ -109,15 +109,14 @@ int main(int argc, char **argv)
 
   /* multiply with Green's function for the potential */
 
-  for(x = 0; x < local_n0; x++)
-    for(y = 0; y < n; y++)
+  for(x = 0; x < local_n0; x++) {
+    if(x + local_0_start > n / 2) kx = x + local_0_start - n;
+    else kx = x + local_0_start;
+    for(y = 0; y < n; y++) {
+      if(y > n / 2) ky = y - n;
+      else ky = y;
       for(z = 0; z < n / 2 + 1; z++) {
-        if(x + local_0_start > n / 2) kx = x + local_0_start - n;
-        else kx = x + local_0_start;
-        if(y > n / 2) ky = y - n;
-        else ky = y;
-        if(z > n / 2) kz = z - n;
-        else kz = z;
+        kz = z;
         k2 = kx * kx + ky * ky + kz * kz;
         if(k2 > 0) {
           smth = - fac / k2;
@@ -125,9 +124,11 @@ int main(int argc, char **argv)
           fft_of_rhogrid[ip][0] *= smth;
           fft_of_rhogrid[ip][1] *= smth;
         }
+        else 
+          fft_of_rhogrid[ip][0] = fft_of_rhogrid[ip][1] = 0.0;
       }
-  if(!local_n0)
-    fft_of_rhogrid[0][0] = fft_of_rhogrid[0][1] = 0.0;
+    }
+  }
   if(!my_id) {printf("k-space multiplication complete\n");fflush(stdout);}
 
   /* Do the FFT to get the potential */

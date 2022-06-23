@@ -7,7 +7,7 @@ fileprefix_subhalo = 'groups_%03d/fof_subhalo_tab_%03d'
 
 def run(argv):
   
-  if len(argv) < 5:
+  if len(argv) < 4:
     print('python script.py <snapshot min,max> <trace-file> <r_phys min,max> [types=-1] [outfile]')
     return 1
 
@@ -54,7 +54,7 @@ def run(argv):
   pos0.shape = (3,)
   print('Lagrangian center ~ (%.6e,%.6e,%.6e)'%tuple(pos0))
 
-  lrad = 2
+  rfac = 3
 
   with open(outname,'wt') as fp:
 
@@ -77,18 +77,19 @@ def run(argv):
 
       # get positions centered on group
       IDs, _ = read_particles_filter(ssfile,center=gpos,radius=(rmin,rmax),type_list=types,opts={'ID':True})
-      print('  %d particles match'%(IDs.size))
 
-      # to save time, we only look for group particles within twice the group's Lagrangian radius
+      # to save time, we only look for group particles within rfac times the group's Lagrangian radius
       rad = lrad * rfac
       pos, mass, _ = read_particles_filter(ss0file,center=pos0,radius=rad,type_list=types,ID_list=IDs,opts={'mass':True,'pos':True},chunksize=2*1024**3)
+      print('  %d IDs -> %d particles'%(IDs.size,mass.size))
 
-      cm = np.sum(pos*mass[:,None],axis=0)/np.sum(mass)
+      cm = np.sum(pos*mass[:,None],axis=0)/np.sum(mass) + pos0
 
       cm /= BoxSize
 
       string = '%d  %.7f  %.7f %.7f %.7f\n'%(ss,a,cm[0],cm[1],cm[2])
 
+      print(string)
       fp.write(string)
 
   return
