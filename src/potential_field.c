@@ -1,4 +1,6 @@
 // compute potential from a periodic delta grid
+// adapted from Gadget 2
+// multiply G/c^2 box^2 [rho]
 
 #include <stdio.h>
 #include <stdlib.h>

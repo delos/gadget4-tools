@@ -1,4 +1,5 @@
 import numpy as np
+import os
 from numba import njit
 from snapshot_functions import group_data, read_particles_filter, read_params
 
@@ -49,7 +50,7 @@ def cic_bin(x,BoxSize,GridSize,weights,density):
 def run(argv):
   
   if len(argv) < 5:
-    print('python script.py <snapshot min,max[,load-file]> <grid size> <trace-file> <r_phys min,max> [types=-1] [rotation-file=0] [r fac=2] [out-prefix]')
+    print('python script.py <snapshot min,max[,load-file]> <grid-file1,file2,...> <trace-file> <r_phys min,max> [types=-1] [r fac=2] [out-prefix]')
     return 1
 
   ssmin,ssmax = [int(x) for x in argv[1].split(',')[:2]]
@@ -58,8 +59,9 @@ def run(argv):
   except:
     loadfile = None
 
-  GridSize = int(argv[2])
-  print('%d^3 cells'%(GridSize))
+  gridfiles = argv[2].split(',')
+  GridSize = int((os.stat(gridfiles[0]).st_size//4)**(1./3)+.5)
+  print('%d^3 cells in full grid'%(GridSize))
 
   _data = np.loadtxt(argv[3])
   _ss = _data[:,0]
@@ -79,26 +81,15 @@ def run(argv):
   except:
     types = None
 
-  rotation = None
   if len(argv) > 6:
-    try:
-      rotation = np.loadtxt(argv[6])
-      print('rotation matrix:')
-      with np.printoptions(precision=3, suppress=True):
-        print(rotation)
-    except:
-      rotation = None
-      print('no rotation')
-
-  if len(argv) > 7:
-    rfac = float(argv[7])
+    rfac = float(argv[6])
   else:
     rfac = 2.
   print('radius factor %f'%rfac)
 
   outprefix = 'origin_%.3e_%.3e'%(rmin_phys,rmax_phys)
-  if len(argv) > 8:
-    outprefix = argv[8]
+  if len(argv) > 7:
+    outprefix = argv[7]
   print('output prefix: %s'%outprefix)
   outbase = outprefix + '_%d'
 
@@ -112,6 +103,7 @@ def run(argv):
     G = 6.6743e-8 / params['UnitVelocity_in_cm_per_s']**2 * params['UnitMass_in_g'] / params['UnitLength_in_cm']
   rho_mean = 3 * (params['Hubble'] * params['HubbleParam'])**2/(8*np.pi*G) * params['Omega0']
   print('rho_mean = %e'%rho_mean)
+  BoxSize = params['BoxSize']
 
   pos0, _ = read_particles_filter(prefile,ID_list=[pid],opts={'pos':True})
   pos0.shape = (3,)
@@ -139,14 +131,43 @@ def run(argv):
     print('  %d particles match'%(IDs.size))
 
     rad = lrad * rfac
-    pos, mass, _ = read_particles_filter(prefile,center=pos0,halfwidth=rad*1.1,rotation=rotation,type_list=types,ID_list=IDs,opts={'mass':True,'pos':True},chunksize=2*1024**3)
+    pos, mass, _ = read_particles_filter(prefile,center=pos0,radius=rad*2.,type_list=types,ID_list=IDs,opts={'mass':True,'pos':True},chunksize=2*1024**3)
+    pos += pos0.reshape((1,3))
+
+    cm = np.sum(pos*mass[:,None],axis=0)/np.sum(mass)
+    
+    string = '%d  %.7f  %.7f %.7f %.7f\n'%(ss,a,cm[0]/BoxSize,cm[1]/BoxSize,cm[2]/BoxSize)
+    with open('origin_CM.txt','at') as fp:
+      fp.write(string)
+    print(string)
+
+    cmGrid = (cm / BoxSize * GridSize).astype(int)
+    cm = (cmGrid+.5) * BoxSize / GridSize
+
+    radGrid = int(rad / BoxSize * GridSize + .5)
+    rad = (radGrid+.5) * BoxSize / GridSize
+
+    pos -= cm.reshape((1,3))
     pos += np.array([rad,rad,rad]).reshape((1,3))
-    dens, bins = cic_bin(pos,2*rad,GridSize,weights=mass,density=True)
+
+    dens, bins = cic_bin(pos,2*rad,2*radGrid+1,weights=mass,density=True)
     dens /= rho_mean
 
     outname = outbase%ss
     dens.tofile(outname)
     print('  saved to ' + outname)
+
+    xlim = np.array([cmGrid[0]-radGrid,cmGrid[0]+radGrid])
+    ylim = np.array([cmGrid[1]-radGrid,cmGrid[1]+radGrid])
+    zlim = np.array([cmGrid[2]-radGrid,cmGrid[2]+radGrid])
+
+    for filename in gridfiles:
+      with open(filename,'rb') as f:
+        f.seek(GridSize**2*xlim[0]*4)
+        dens = np.fromfile(f,count=GridSize**2*(xlim[1]-xlim[0]+1),dtype=np.float32)
+      dens.shape = (xlim[1]-xlim[0]+1,GridSize,GridSize)
+      dens = dens[:,ylim[0]:ylim[1]+1,zlim[0]:zlim[1]+1]
+      dens.tofile(outname + '-' + os.path.basename(filename))
 
   return
 
