@@ -49,7 +49,7 @@ def cic_bin(x,BoxSize,GridSize,weights,density):
 
   return hist,bins
 
-def nn_density(x,BoxSize,GridSize,weights,nnk):
+def nn_density(x,BoxSize,GridSize,weights,nnk,simple=False):
   NP = x.shape[0]
 
   N = GridSize
@@ -57,6 +57,9 @@ def nn_density(x,BoxSize,GridSize,weights,nnk):
   bins = dx * np.arange(N+1)
 
   hist = np.zeros((N,N,N),dtype=np.float32)
+
+  if NP < nnk:
+    return hist,bins
 
   tree = cKDTree(x / dx - 0.5)
   # particles in (-0.5,N-0.5)
@@ -69,7 +72,10 @@ def nn_density(x,BoxSize,GridSize,weights,nnk):
     # grid has shape (GridSize,GridSize,3)
     dist,index = tree.query(grid,nnk)
     # dist, index have shape (GridSize,GridSize,nnk)
-    hist[i] = nnk*(nnk+1.)/2. / (4./3*np.pi*np.sum(dist**3/weights[index],axis=-1)) # weighted M/V
+    if simple:
+      hist[i] = np.sum(weights[index],axis=-1) / (4./3*np.pi*dist.take(-1,axis=-1)**3) # M/V
+    else:
+      hist[i] = nnk*(nnk+1.)/2. / (4./3*np.pi*np.sum(dist**3/weights[index],axis=-1)) # weighted M/V
 
   hist /= dx**3
   return hist,bins
@@ -77,18 +83,25 @@ def nn_density(x,BoxSize,GridSize,weights,nnk):
 def run(argv):
   
   if len(argv) < 5:
-    print('python script.py <snapshot min,max> <grid size[, NN k]> <x,y,z or trace-file> <r> [types=-1] [rotation-file=0] [ID-file=0] [physical=0] [out-name]')
+    print('python script.py <snapshot min,max> <grid size[, NN k,simple=0]> <x,y,z or trace-file> <r> [types=-1] [rotation-file=0] [ID-file=0] [physical=0] [out-name]')
     return 1
 
   ssmin,ssmax = [int(x) for x in argv[1].split(',')]
   
-  try:
-    GridSize,nnk = [int(x) for x in argv[2].split(',')]
-    print('%d^3 cells; k=%d nearest neighbors'%(GridSize,nnk))
-  except:
+  method = argv[2].split(',')
+  if len(method) == 1:
     GridSize = int(argv[2])
     nnk = None
-    print('%d^3 cells'%(GridSize))
+    nns = False
+    print('%d^3 cells; CIC'%(GridSize))
+  elif len(method) == 2 or method[2].lower().startswith(('0','f','n','-')):
+    GridSize,nnk = [int(x) for x in method[:2]]
+    nns = False
+    print('%d^3 cells; k=%d nearest neighbors'%(GridSize,nnk))
+  else:
+    GridSize,nnk = [int(x) for x in method[:2]]
+    nns = True
+    print('%d^3 cells; k=%d nearest neighbors [simple]'%(GridSize,nnk))
 
   try:
     _data = np.loadtxt(argv[3])
@@ -102,6 +115,7 @@ def run(argv):
     x,y,z = [float(x) for x in argv[3].split(',')]
   
   r = float(argv[4])
+  print('radius %g'%r)
 
   try:
     types = [int(x) for x in argv[5].split(',')]
@@ -179,7 +193,7 @@ def run(argv):
     if nnk is None:
       dens, bins = cic_bin(pos,2*r,GridSize,weights=mass,density=True)
     else:
-      dens, bins = nn_density(pos,2*r,GridSize,weights=mass,nnk=nnk)
+      dens, bins = nn_density(pos,2*r,GridSize,weights=mass,nnk=nnk,simple=nns)
 
     if phys:
       dens /= scale**3

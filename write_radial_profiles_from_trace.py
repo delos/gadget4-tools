@@ -3,10 +3,13 @@ from numba import njit
 from snapshot_functions import list_snapshots, read_particles_filter
 
 @njit
-def profile(pos,mass,rmin,rmax,nr):
+def profile(pos,vel,mass,rmin,rmax,nr):
 
   bin_ct = np.zeros(nr,dtype=np.int32)
   bin_m = np.zeros(nr)
+  bin_mvr = np.zeros(nr)
+  bin_mvr2 = np.zeros(nr)
+  bin_mv2 = np.zeros(nr)
   low_ct = 0
   low_m = 0.
 
@@ -14,6 +17,8 @@ def profile(pos,mass,rmin,rmax,nr):
 
   for p in range(pos.shape[0]):
     r = np.sqrt(np.sum(pos[p]**2))
+    vr = np.sum(pos[p]*vel[p])/r
+    v2 = np.sum(vel[p]**2)
 
     if r >= rmax:
       continue
@@ -28,6 +33,9 @@ def profile(pos,mass,rmin,rmax,nr):
 
     bin_ct[i] += 1
     bin_m[i] += mass[p]
+    bin_mvr[i] += mass[p] * vr
+    bin_mvr2[i] += mass[p] * vr**2
+    bin_mv2[i] += mass[p] * v2
 
   bin_rl = rmin * (rmax/rmin)**(np.arange(nr)*1./nr) # lower edges
   bin_ru = rmin * (rmax/rmin)**(np.arange(1,nr+1)*1./nr) # upper edges
@@ -41,7 +49,11 @@ def profile(pos,mass,rmin,rmax,nr):
 
   bin_ctcum = np.cumsum(bin_ct) + low_ct
 
-  return bin_r, bin_rho, bin_ru, bin_mcum, bin_ctcum
+  bin_v2 = bin_mv2 / bin_m
+  bin_vr2 = bin_mvr2 / bin_m
+  bin_vr = bin_mvr / bin_m
+
+  return bin_r, bin_rho, bin_v2, bin_vr2, bin_vr, bin_ru, bin_mcum, bin_ctcum
 
 def run(argv):
   
@@ -53,9 +65,12 @@ def run(argv):
 
   _data = np.loadtxt(argv[2])
   _ss = _data[:,0]
-  _x = _data[:,2]
-  _y = _data[:,3]
-  _z = _data[:,4]
+  _x  = _data[:,2]
+  _y  = _data[:,3]
+  _z  = _data[:,4]
+  _vx = _data[:,5]
+  _vy = _data[:,6]
+  _vz = _data[:,7]
   print('using trace file')
   
   rb = argv[3].split(',')
@@ -74,7 +89,7 @@ def run(argv):
 
   
   try: outbase = argv[5]
-  except: outbase = 'profile'
+  except: outbase = 'profiles'
 
   names, headers = list_snapshots()
   for i, filename in enumerate(names):
@@ -87,25 +102,34 @@ def run(argv):
 
     if snapshot_number < _ss[0]:
       center = [_x[0],_y[0],_z[0]]
+      center_v = np.zeros(3)
     elif snapshot_number > _ss[-1]:
       center = [_x[-1],_y[-1],_z[-1]]
+      center_v = np.zeros(3)
     else:
       center = [
         _x[_ss==snapshot_number][0],
         _y[_ss==snapshot_number][0],
         _z[_ss==snapshot_number][0],
         ]
+      center_v = np.array([
+        _vx[_ss==snapshot_number][0],
+        _vy[_ss==snapshot_number][0],
+        _vz[_ss==snapshot_number][0],
+        ])
 
-    pos, mass, header = read_particles_filter(filename,center=center,radius=rmax,type_list=types,opts={'mass':True,'pos':True})
+    pos, vel, mass, header = read_particles_filter(filename,center=center,radius=rmax,type_list=types,opts={'mass':True,'pos':True,'vel':True})
 
-    r, rho, ru, m, ct = profile(pos,mass,rmin,rmax,nr)
+    vel -= center_v.reshape((1,3))
+
+    r, rho, v2, vr2, vr, ru, m, ct = profile(pos,vel,mass,rmin,rmax,nr)
 
     with open(outname,'wt') as f:
       f.write('# (%.12e, %.12e, %.12e)\n'%tuple(center))
       f.write('# %.12e\n'%header['Time'])
-      f.write('# radius rho r_upper mass count\n')
+      f.write('# radius rho r_upper mass count <v^2> <vr^2> <vr>\n')
       for i in range(len(r)):
-        f.write('%.6e %.6e %.6e %.6e %d\n'%(r[i], rho[i], ru[i], m[i], ct[i]))
+        f.write('%.6e %.6e %.6e %.6e %d %.6e %.6e %.6e\n'%(r[i], rho[i], ru[i], m[i], ct[i], v2[i], vr2[i], vr[i]))
 
 if __name__ == '__main__':
   from sys import argv
