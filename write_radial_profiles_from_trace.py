@@ -10,6 +10,7 @@ def profile(pos,vel,mass,rmin,rmax,nr):
   bin_mvr = np.zeros(nr)
   bin_mvr2 = np.zeros(nr)
   bin_mv2 = np.zeros(nr)
+  bin_mrv = np.zeros((nr,3))
   low_ct = 0
   low_m = 0.
 
@@ -36,6 +37,8 @@ def profile(pos,vel,mass,rmin,rmax,nr):
     bin_mvr[i] += mass[p] * vr
     bin_mvr2[i] += mass[p] * vr**2
     bin_mv2[i] += mass[p] * v2
+    for d in range(3):
+      bin_mrv[i,d] += mass[p] * (pos[p,(d+1)%3]*vel[p,(d+2)%3] - pos[p,(d+2)%3]*vel[p,(d+1)%3])
 
   bin_rl = rmin * (rmax/rmin)**(np.arange(nr)*1./nr) # lower edges
   bin_ru = rmin * (rmax/rmin)**(np.arange(1,nr+1)*1./nr) # upper edges
@@ -53,7 +56,9 @@ def profile(pos,vel,mass,rmin,rmax,nr):
   bin_vr2 = bin_mvr2 / bin_m
   bin_vr = bin_mvr / bin_m
 
-  return bin_r, bin_rho, bin_v2, bin_vr2, bin_vr, bin_ru, bin_mcum, bin_ctcum
+  bin_rv = bin_mrv / bin_m.reshape((-1,1))
+
+  return bin_r, bin_rho, bin_v2, bin_vr2, bin_vr, bin_rv, bin_ru, bin_mcum, bin_ctcum
 
 def run(argv):
   
@@ -122,14 +127,14 @@ def run(argv):
 
     vel -= center_v.reshape((1,3))
 
-    r, rho, v2, vr2, vr, ru, m, ct = profile(pos,vel,mass,rmin,rmax,nr)
+    r, rho, v2, vr2, vr, rv, ru, m, ct = profile(pos,vel,mass,rmin,rmax,nr)
 
     with open(outname,'wt') as f:
       f.write('# (%.12e, %.12e, %.12e)\n'%tuple(center))
       f.write('# %.12e\n'%header['Time'])
-      f.write('# radius rho r_upper mass count <v^2> <vr^2> <vr>\n')
+      f.write('# radius rho r_upper mass count <v^2> <vr^2> <vr> <Lx> <Ly> <Lz>\n')
       for i in range(len(r)):
-        f.write('%.6e %.6e %.6e %.6e %d %.6e %.6e %.6e\n'%(r[i], rho[i], ru[i], m[i], ct[i], v2[i], vr2[i], vr[i]))
+        f.write('%.6e %.6e %.6e %.6e %d %.6e %.6e %.6e %.6e %.6e %.6e\n'%(r[i], rho[i], ru[i], m[i], ct[i], v2[i], vr2[i], vr[i], rv[i,0], rv[i,1], rv[i,2]))
 
 if __name__ == '__main__':
   from sys import argv
