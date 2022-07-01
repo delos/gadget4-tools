@@ -24,9 +24,11 @@ def shape(pos,mass,r):
 
   while True:
     I, M = inertia_tensor(pos,mass,axes)
-    if M == 0.:
+    if M == 0. or not np.isfinite(M) or not np.all(np.isfinite(I)):
       return np.zeros(3), 0.
     newaxes, eigvec = eigh(I) # ascending order
+    if np.any(newaxes<0.):
+      return np.zeros(3), 0.
     newaxes = np.sqrt(newaxes/newaxes[-1])*r
     diff = np.sqrt(np.sum((newaxes-axes)**2))/r
     print(axes/r, diff)
