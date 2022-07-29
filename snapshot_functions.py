@@ -759,7 +759,7 @@ def group_extent(fileprefix,group,size_definition='TopHat200'):
 
   return pos, radius, header
 
-def group_data(fileprefix,group,size_definition='Mean200'):
+def group_data(fileprefix,group,size_definition='Mean200',opts={'pos':True,'vel':False,'radius':True,'mass':True,}):
 
   '''
   
@@ -772,10 +772,14 @@ def group_data(fileprefix,group,size_definition='Mean200'):
     group: group number
 
     size_definition: 'Crit200', 'Crit500', 'Mean200' (default), or 'TopHat200'
+
+    opts: which fields to return
     
   Returns:
     
     pos: shape (3,), comoving
+
+    vel: shape (3,), peculiar
     
     radius
 
@@ -816,12 +820,14 @@ def group_data(fileprefix,group,size_definition='Mean200'):
 
       header = dict(f['Header'].attrs)
 
+      ScaleFactor = 1./(1+header['Redshift'])
       numfiles = header['NumFiles']
 
       if hinst + header['Ngroups_ThisFile'] > group:
         index = group - hinst
 
         pos = np.array(f['Group/GroupPos'])[index]
+        vel = np.array(f['Group/GroupVel'])[index] * np.sqrt(ScaleFactor)
         radius = np.array(f['Group/Group_R_'+size_definition])[index]
         mass = np.array(f['Group/Group_M_'+size_definition])[index]
 
@@ -833,10 +839,18 @@ def group_data(fileprefix,group,size_definition='Mean200'):
   else:
     print('Warning: halo %d not found'%group)
     pos = np.zeros(3)
+    vel = np.zeros(3)
     radius = 0.
     mass = 0.
 
-  return pos, radius, mass, header
+  ret = []
+  if opts.get('pos'): ret += [pos]
+  if opts.get('vel'): ret += [vel]
+  if opts.get('radius'): ret += [radius]
+  if opts.get('mass'): ret += [mass]
+  ret += [header]
+
+  return tuple(ret)
 
 def count_halos():
 
@@ -930,7 +944,7 @@ def list_snapshots():
 
   return names, headers
 
-def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False},chunksize=1048576):
+def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False,'acc':False,'pot':False},chunksize=1048576):
 
   '''
   
@@ -974,6 +988,10 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     index: array of particle indices within snapshot, shape (NP,)
 
     type: array of particle types, shape (NP,)
+
+    acc: acceleration, shape (NP,3)
+
+    pot: potential, shape (NP,)
     
     header: a dict with header info, use list(header) to see the fields
   
@@ -994,6 +1012,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     # exact filename was passed - will cause error if >1 files, otherwise fine
     filebase = fileprefix
     numfiles = 1
+  else:
+    raise FileNotFoundError(fileprefix)
 
   if center is not None:
     if len(np.shape(center)) < 2:
@@ -1015,6 +1035,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
   if opts.get('ID'): ID = []
   if opts.get('index'): index = []
   if opts.get('type'): ptype = []
+  if opts.get('acc'): acc = []
+  if opts.get('pot'): pot = []
   header = None
   while fileinst < numfiles:
 
@@ -1111,11 +1133,16 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
             if opts.get('ID'):
               if ID_list is None:
                 ID += [np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]]
-              else: ID += [ID_[idx]]
+              else: ID += [ID_[idx_ID]]
             if opts.get('index'):
               index += [np.arange(i00[typ],i00[typ]+Nc,dtype=np.int64)[idx]]
             if opts.get('type'):
               ptype += [np.full(np.sum(idx),typ)]
+
+            if opts.get('acc'):
+              acc += [np.array(f['PartType%d/Acceleration'%typ][iread])[idx] * np.sqrt(ScaleFactor)]
+            if opts.get('pot'):
+              pot += [np.array(f['PartType%d/Potential'%typ][iread])[idx]]
 
           Nleft -= Nc
           i0 += Nc
@@ -1131,6 +1158,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
   if opts.get('ID'): ret += [np.concatenate(ID)] if len(ID) > 0 else [np.empty(0,dtype=np.uint32)]
   if opts.get('index'): ret += [np.concatenate(index)] if len(index) > 0 else [np.empty(0,dtype=np.uint32)]
   if opts.get('type'): ret += [np.concatenate(ptype)] if len(ptype) > 0 else [np.empty(0,dtype=np.uint32)]
+  if opts.get('acc'): ret += [np.concatenate(acc,axis=0)] if len(acc) > 0 else [np.empty((0,3))]
+  if opts.get('pot'): ret += [np.concatenate(pot)] if len(pot) > 0 else [np.empty(0)]
   ret += [header]
 
   return tuple(ret)

@@ -250,19 +250,24 @@ void get_peak_shape() {
   gsl_eigen_symmv_free(w);
 }
 
-void save_peaks() {
+void save_peaks(char *filename) {
   FILE *fp;
   int p,i;
   if(!my_id) {
-    fp = fopen("peak_parameters.txt","w");
+    fp = fopen(filename,"w");
     fprintf(fp,"#n d -del^2d e p\n");
+    fflush(fp);
     fclose(fp);
   }
   MPI_Barrier(MPI_COMM_WORLD);
-  fp = fopen("peak_parameters.txt","a");
-  for(p=0;p<npeak;p++) {
-    fprintf(fp,"%d %lg %lg %lg %lg\n",
-        halon[p],nupk[p]*sigma0,xpk[p]*sigma2,epk[p],ppk[p]);
+  fp = fopen(filename,"a");
+  for(i=0; i<num_procs; i++) {
+    if(i==my_id) {
+      for(p=0;p<npeak;p++)
+        fprintf(fp,"%d %lg %lg %lg %lg\n",halon[p],nupk[p]*sigma0,xpk[p]*sigma2,epk[p],ppk[p]);
+      fflush(fp);
+    }
+    MPI_Barrier(MPI_COMM_WORLD); 
   }
   fclose(fp);
 }
@@ -297,12 +302,16 @@ int main(int argc, char **argv) {
   if(!my_id) {for(i=0; i<argc; i++) {printf(argv[i]);printf(" ");}printf("\n");}
   if(argc<3) {
     if(!my_id) {
-      printf("usage: exe <grid file> <peak file>\n");
+      printf("usage: exe <grid file> <peak file> [out file]\n");
       printf("  peak file has columns n, i, j, k\n");
     }
     MPI_Finalize();
     return 1;
   }
+
+  char outfile[128];
+  if(argc>3) strcpy(outfile,argv[3]);
+  else sprintf(outfile,"peak_parameters.txt");
 
   // get grid size
   struct stat st;
@@ -350,7 +359,7 @@ int main(int argc, char **argv) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // save to halo table
-  save_peaks();
+  save_peaks(outfile);
 
   // clean up
   if(!my_id) printf("done (t=%.0lfs)\n",difftime(time(NULL),timer));
