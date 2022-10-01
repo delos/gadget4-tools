@@ -8,6 +8,27 @@ fileprefix_subhalo = 'groups_%03d/fof_subhalo_tab_%03d'
 fileprefix_subhalo_desc = 'groups_%03d/subhalo_desc_%03d'
 fileprefix_subhalo_prog = 'groups_%03d/subhalo_prog_%03d'
 
+def _get_filebase(fileprefix):
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+  else:
+    raise FileNotFoundError(fileprefix)
+  return filebase, numfiles
+
 def gadget_to_particles(fileprefix, opts={'pos':True,'vel':True,'ID':False,'mass':True}):
 
   '''
@@ -1298,6 +1319,193 @@ def read_params(fileprefix):
 
   return params
 
+def group_subhalo_positional_data(fileprefix):
+
+  '''
+
+  Get subhalo/group ID+length data; useful to assign particles.
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., fof_subhalo_tab_000, not fof_subhalo_tab_000.0.hdf5)
+
+  Returns:
+    
+    group_number
+
+    group_length
+
+    subhalo_number
+
+    subhalo_length
+
+    subhalo_group
+
+    
+  '''
+
+  filepath = [
+    Path(fileprefix + '.hdf5'),
+    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix),
+    ]
+
+  if filepath[0].is_file():
+    filebase = fileprefix + '.hdf5'
+    numfiles = 1
+  elif filepath[1].is_file():
+    filebase = fileprefix + '.%d.hdf5'
+    numfiles = 2
+  elif filepath[2].is_file():
+    # exact filename was passed - will cause error if >1 files, otherwise fine
+    filebase = fileprefix
+    numfiles = 1
+
+  fileinst = 0
+  group_number = []
+  group_length = []
+  subhalo_number = []
+  subhalo_length = []
+  subhalo_group = []
+  group = 0
+  subhalo = 0
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+      numfiles = header['NumFiles']
+
+      group_length += [np.array(f['Group/GroupLenType'])]
+      group_number += [np.arange(group,group+group_length[-1].shape[0]]
+      group += group_length[-1].shape[0]
+
+      subhalo_length += [np.array(f['Subhalo/SubhaloLenType'])]
+      subhalo_number += [np.arange(subhalo,subhalo+subhalo_length[-1].shape[0]
+      subhalo_group += [np.array(f['Subhalo/SubhaloGroupNr'])]
+      subhalo += subhalo_length[-1].shape[0]
+
+    fileinst += 1
+
+  return np.concatenate(group_number), np.concatenate(group_length), np.concatenate(subhalo_number), np.concatenate(subhalo_length), np.concatenate(subhalo_group), header
+
+def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
+
+  '''
+  
+  Read particles from GADGET HDF5 snapshot. Return only particles matching filter.
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
+
+    ID_list: particle IDs (any shape)
+
+    chunksize: restrict number of particles to handle at a time (to save memory).
+    
+  Returns:
+    
+    index: particle indices within snapshot (same shape as ID_list)
+
+    types: particle types (same shape as ID_list)
+
+    header: a dict with header info, use list(header) to see the fields
+  
+  '''
+  filebase, numfiles = _get_filebase(fileprefix)
+
+  if center is not None:
+    if len(np.shape(center)) < 2:
+      center = np.array(center)[None,:]
+    else:
+      center = np.array(center)
+
+  try:
+    rmin = radius[0]
+    rmax = radius[1]
+  except:
+    rmin = None
+    rmax = radius
+
+  fileinst = 0
+  index = np.zeros(np.shape(ID_list),dtype=np.int64)-1
+  types = np.zeros(np.shape(ID_list),dtype=np.int32)-1
+  header = None
+  while fileinst < numfiles:
+
+    if header is not None and ID_list is not None and len(ID_list) == 0:
+      break
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+
+      NP = header['NumPart_ThisFile']
+      NPtot = header['NumPart_Total']
+      numfiles = header['NumFilesPerSnapshot']
+
+      if fileinst == 0:
+        if type_list is None:
+          types = np.arange(len(NPtot))
+        else:
+          types = np.intersect1d(type_list,np.arange(len(NPtot)))
+          print('  types ' + ', '.join([str(x) for x in types]))
+        i00 = np.zeros(len(NPtot),dtype=np.int64)
+
+      nreadTot = 0
+      for typ in types:
+        NPtyp = int(NP[typ])
+        if NPtyp == 0:
+          continue
+
+        Nleft = NPtyp
+        i0 = 0
+
+        while Nleft > 0:
+          Nc = min(chunksize,Nleft)
+          iread = slice(i0,i0+Nc)
+
+          idx = np.full(Nc,True)
+
+          # ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])
+          # idx &= np.isin(ID_,ID_list,assume_unique=True)
+          # this can be slow, so save time by doing this test
+          # only on particles that passed other tests
+          ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]
+          #print('    testing if %d IDs in list of %d'%(len(ID_),len(ID_list)))
+          idx_ID = np.isin(ID_,ID_list,assume_unique=True)
+          ID_list = np.array(ID_list)[np.isin(ID_list,ID_[idx_ID],assume_unique=True,invert=True)]
+          idx[idx] &= idx_ID
+
+          nread = np.sum(idx)
+          nreadTot += nread
+          if nread > 0:
+            if ID_list is None:
+              ID += [np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]]
+            else: ID += [ID_[idx_ID]]
+            index += [np.arange(i00[typ],i00[typ]+Nc,dtype=np.int64)[idx]]
+            ptype += [np.full(np.sum(idx),typ)]
+
+          Nleft -= Nc
+          i0 += Nc
+          i00[typ] += Nc
+
+    print('  ' + str(nreadTot) + ' particles match filter')
+    fileinst += 1
+
+  return index, types, header
 
 def particle_subhalo_data(fileprefix,index,ptype):
 
