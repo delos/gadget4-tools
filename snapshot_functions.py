@@ -55,22 +55,7 @@ def gadget_to_particles(fileprefix, opts={'pos':True,'vel':True,'ID':False,'mass
   
   '''
 
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
   pinst = 0
@@ -152,22 +137,7 @@ def fof_to_halos(fileprefix,opts={'pos':True,'vel':True,'mass':True}):
     
   '''
 
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
   if opts.get('pos'): pos = []
@@ -621,22 +591,7 @@ def subhalo_group_data(fileprefix,opts={'mass':True,'len':False,'pos':False},par
     
   '''
 
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
   group = []
@@ -729,22 +684,7 @@ def group_extent(fileprefix,group,size_definition='TopHat200'):
     
   '''
 
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
   hinst = 0
@@ -810,22 +750,7 @@ def group_data(fileprefix,group,size_definition='Mean200',opts={'pos':True,'vel'
     
   '''
 
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
   hinst = 0
@@ -1017,24 +942,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     header: a dict with header info, use list(header) to see the fields
   
   '''
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
 
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
-  else:
-    raise FileNotFoundError(fileprefix)
+  filebase, numfiles = _get_filebase(fileprefix)
 
   if center is not None:
     if len(np.shape(center)) < 2:
@@ -1210,22 +1119,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
     header: a dict with header info, use list(header) to see the fields
   
   '''
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
 
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
   if opts.get('pos'): pos = []
@@ -1292,22 +1187,7 @@ def read_params(fileprefix):
   
   '''
 
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   if numfiles == 1:
     filename = filebase
@@ -1331,40 +1211,27 @@ def group_subhalo_positional_data(fileprefix):
 
   Returns:
     
-    group_number
-
     group_length
 
-    subhalo_number
+    group_firstsub
+
+    group_numsubs
 
     subhalo_length
 
     subhalo_group
 
+    header: a dict with header info, use list(header) to see the fields
+
     
   '''
 
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
-  group_number = []
   group_length = []
-  subhalo_number = []
+  group_firstsub = []
+  group_numsubs = []
   subhalo_length = []
   subhalo_group = []
   group = 0
@@ -1382,18 +1249,28 @@ def group_subhalo_positional_data(fileprefix):
       header = dict(f['Header'].attrs)
       numfiles = header['NumFiles']
 
-      group_length += [np.array(f['Group/GroupLenType'])]
-      group_number += [np.arange(group,group+group_length[-1].shape[0]]
-      group += group_length[-1].shape[0]
-
-      subhalo_length += [np.array(f['Subhalo/SubhaloLenType'])]
-      subhalo_number += [np.arange(subhalo,subhalo+subhalo_length[-1].shape[0]
-      subhalo_group += [np.array(f['Subhalo/SubhaloGroupNr'])]
-      subhalo += subhalo_length[-1].shape[0]
+      try:
+        group_length += [np.array(f['Group/GroupLenType'])]
+        group_firstsub += [np.array(f['Group/GroupFirstSub'])]
+        group_numsubs += [np.array(f['Group/GroupNsubs'])]
+        group += group_length[-1].shape[0]
+      except Exception as e:
+        pass
+      try:
+        subhalo_length += [np.array(f['Subhalo/SubhaloLenType'])]
+        subhalo_group += [np.array(f['Subhalo/SubhaloGroupNr'])]
+        subhalo += subhalo_length[-1].shape[0]
+      except Exception as e:
+        pass
 
     fileinst += 1
 
-  return np.concatenate(group_number), np.concatenate(group_length), np.concatenate(subhalo_number), np.concatenate(subhalo_length), np.concatenate(subhalo_group), header
+  return (np.concatenate(group_length),
+          np.concatenate(group_firstsub),
+          np.concatenate(group_numsubs),
+          np.concatenate(subhalo_length),
+          np.concatenate(subhalo_group),
+          header)
 
 def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
 
@@ -1413,33 +1290,21 @@ def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
     
     index: particle indices within snapshot (same shape as ID_list)
 
-    types: particle types (same shape as ID_list)
+    ptype: particle types (same shape as ID_list)
 
     header: a dict with header info, use list(header) to see the fields
   
   '''
   filebase, numfiles = _get_filebase(fileprefix)
 
-  if center is not None:
-    if len(np.shape(center)) < 2:
-      center = np.array(center)[None,:]
-    else:
-      center = np.array(center)
-
-  try:
-    rmin = radius[0]
-    rmax = radius[1]
-  except:
-    rmin = None
-    rmax = radius
-
   fileinst = 0
+  ID_list = np.array(ID_list)
   index = np.zeros(np.shape(ID_list),dtype=np.int64)-1
-  types = np.zeros(np.shape(ID_list),dtype=np.int32)-1
+  ptype = np.zeros(np.shape(ID_list),dtype=np.int32)-1
   header = None
   while fileinst < numfiles:
 
-    if header is not None and ID_list is not None and len(ID_list) == 0:
+    if np.all(index>=0):
       break
 
     if numfiles == 1:
@@ -1457,14 +1322,9 @@ def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
       numfiles = header['NumFilesPerSnapshot']
 
       if fileinst == 0:
-        if type_list is None:
-          types = np.arange(len(NPtot))
-        else:
-          types = np.intersect1d(type_list,np.arange(len(NPtot)))
-          print('  types ' + ', '.join([str(x) for x in types]))
+        types = np.arange(len(NPtot))
         i00 = np.zeros(len(NPtot),dtype=np.int64)
 
-      nreadTot = 0
       for typ in types:
         NPtyp = int(NP[typ])
         if NPtyp == 0:
@@ -1477,35 +1337,23 @@ def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
           Nc = min(chunksize,Nleft)
           iread = slice(i0,i0+Nc)
 
-          idx = np.full(Nc,True)
+          ID = np.array(f['PartType%d/ParticleIDs'%typ][iread])
 
-          # ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])
-          # idx &= np.isin(ID_,ID_list,assume_unique=True)
-          # this can be slow, so save time by doing this test
-          # only on particles that passed other tests
-          ID_ = np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]
-          #print('    testing if %d IDs in list of %d'%(len(ID_),len(ID_list)))
-          idx_ID = np.isin(ID_,ID_list,assume_unique=True)
-          ID_list = np.array(ID_list)[np.isin(ID_list,ID_[idx_ID],assume_unique=True,invert=True)]
-          idx[idx] &= idx_ID
+          in_idx = np.isin(ID_list,ID,assume_unique=True) # shape ID_list.shape
 
-          nread = np.sum(idx)
-          nreadTot += nread
-          if nread > 0:
-            if ID_list is None:
-              ID += [np.array(f['PartType%d/ParticleIDs'%typ][iread])[idx]]
-            else: ID += [ID_[idx_ID]]
-            index += [np.arange(i00[typ],i00[typ]+Nc,dtype=np.int64)[idx]]
-            ptype += [np.full(np.sum(idx),typ)]
+          if np.any(in_idx):
+            sort_idx = ID.argsort()
+            test = np.searchsorted(ID,ID_list[in_idx],sorter=sort_idx)
+            index[in_idx] = sort_idx[test] + i00[typ]
+            ptype[in_idx] = typ
 
           Nleft -= Nc
           i0 += Nc
           i00[typ] += Nc
 
-    print('  ' + str(nreadTot) + ' particles match filter')
     fileinst += 1
 
-  return index, types, header
+  return index, ptype, header
 
 def particle_subhalo_data(fileprefix,index,ptype):
 
@@ -1535,22 +1383,7 @@ def particle_subhalo_data(fileprefix,index,ptype):
     
   '''
 
-  filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
-    Path(fileprefix),
-    ]
-
-  if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
-    numfiles = 1
-  elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
-    numfiles = 2
-  elif filepath[2].is_file():
-    # exact filename was passed - will cause error if >1 files, otherwise fine
-    filebase = fileprefix
-    numfiles = 1
+  filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
   subhalonum = []
