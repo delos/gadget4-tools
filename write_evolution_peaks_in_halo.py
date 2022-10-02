@@ -50,18 +50,21 @@ def run(argv):
   vel = np.zeros(snapshots.shape+IDs.shape+(3,),dtype=np.float32)*np.nan
   subpos = np.zeros(snapshots.shape+IDs.shape+(3,),dtype=np.float32)*np.nan
   subvel = np.zeros(snapshots.shape+IDs.shape+(3,),dtype=np.float32)*np.nan
+  subrad = np.zeros(snapshots.shape+IDs.shape,dtype=np.float32)*np.nan
 
   for i, ss in enumerate(np.arange(ssmin,ssmax+1)):
     ssname = fileprefix_snapshot%(ss,ss)
     grpname = fileprefix_subhalo%(ss,ss)
 
+    _pos, _vel, _index, _type, header = particles_by_ID(ssname, IDs, opts={'pos':True,'vel':True,'index':True,'type':True})
+    pos[i] = _pos
+    vel[i] = _vel
+
     try:
-      _subpos, _subvel, _sublen, _subgrp, _grplen, _grpfirstsub, _grpnumsubs, _ = read_subhalos(grpname,opts={'pos':True,'vel':True,'lentype':True,'group':True},group_opts={'lentype':True,'firstsub':True,'numsubs':True})
+      _subpos, _subvel, _subrad, _sublen, _subgrp, _grplen, _grpfirstsub, _grpnumsubs, _ = read_subhalos(grpname,opts={'pos':True,'vel':True,'radius':True,'lentype':True,'group':True},group_opts={'lentype':True,'firstsub':True,'numsubs':True})
     except Exception as e:
       print(e)
       continue
-    _pos, _vel, _index, _type, header = particles_by_ID(ssname, IDs, opts={'pos':True,'vel':True,'index':True,'type':True})
-
     for typ in np.unique(_type):
       idx = (_type==typ)
       group, subhalo = get_groups_subhalos(_index[idx], _grplen[:,typ], _grpfirstsub, _grpnumsubs, _sublen[:,typ])
@@ -69,10 +72,9 @@ def run(argv):
       subhalos[i,idx] = subhalo
       subpos[i,idx] = _subpos[subhalo]
       subvel[i,idx] = _subvel[subhalo]
-    pos[i] = _pos
-    vel[i] = _vel
+      subrad[i,idx] = _subrad[subhalo]
 
-  np.savez('peak_evolution.npz',snapshots=snapshots, peaks=peaks, IDs=IDs, groups=groups, subhalos=subhalos, pos=pos, vel=vel, subpos=subpos, subvel=subvel)
+  np.savez('peak_evolution.npz',snapshots=snapshots, peaks=peaks, IDs=IDs, groups=groups, subhalos=subhalos, pos=pos, vel=vel, subpos=subpos, subvel=subvel, subrad=subrad)
 
   return
 

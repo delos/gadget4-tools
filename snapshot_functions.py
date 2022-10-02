@@ -1094,7 +1094,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
 
   return tuple(ret)
 
-def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':False,'group':False},group_opts={}):
+def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':False,'lentype':False,'group':False},group_opts={}):
 
   '''
   
@@ -1115,6 +1115,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
     vel: velocity array, shape (NH,3), peculiar
 
     mass: mass array, shape (NH,)
+
+    radius: half-mass radius, shape (NH,)
 
     lentype: particle count array (by type), shape (NH,Ntype)
     
@@ -1142,6 +1144,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
   if opts.get('pos'): pos = []
   if opts.get('vel'): vel = []
   if opts.get('mass'): mass = []
+  if opts.get('radius'): radius = []
   if opts.get('lentype'): lentype = []
   if opts.get('group'): group = []
   if group_opts.get('pos'): group_pos = []
@@ -1174,6 +1177,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
           vel += [np.array(f['Subhalo/SubhaloVel']) * np.sqrt(ScaleFactor)]
         if opts.get('mass'):
           mass += [np.array(f['Subhalo/SubhaloMass'])]
+        if opts.get('radius'):
+          radius += [np.array(f['Subhalo/SubhaloHalfmassRad'])]
         if opts.get('lentype'):
           lentype += [np.array(f['Subhalo/SubhaloLenType'])]
         if opts.get('group'):
@@ -1202,6 +1207,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
   if opts.get('pos'): ret += [np.concatenate(pos,axis=0)]
   if opts.get('vel'): ret += [np.concatenate(vel,axis=0)]
   if opts.get('mass'): ret += [np.concatenate(mass)]
+  if opts.get('radius'): ret += [np.concatenate(radius)]
   if opts.get('lentype'): ret += [np.concatenate(lentype,axis=0)]
   if opts.get('group'): ret += [np.concatenate(group)]
   if group_opts.get('pos'): ret += [np.concatenate(group_pos,axis=0)]
