@@ -127,9 +127,9 @@ def fof_to_halos(fileprefix,opts={'pos':True,'vel':True,'mass':True}):
     
   Returns:
     
-    pos: position array, shape (3,NH), comoving
+    pos: position array, shape (NH,3), comoving
     
-    vel: velocity array, shape (3,NH), peculiar
+    vel: velocity array, shape (NH,3), peculiar
     
     mass: mass array, shape (NH,)
 
@@ -165,8 +165,8 @@ def fof_to_halos(fileprefix,opts={'pos':True,'vel':True,'mass':True}):
         break
  
       if header['Ngroups_ThisFile'] > 0:
-        if opts.get('pos'): pos += [np.array(f['Group/GroupPos']).T]
-        if opts.get('vel'): vel += [np.array(f['Group/GroupVel']).T * np.sqrt(ScaleFactor)]
+        if opts.get('pos'): pos += [np.array(f['Group/GroupPos'])]
+        if opts.get('vel'): vel += [np.array(f['Group/GroupVel']) * np.sqrt(ScaleFactor)]
         if opts.get('mass'): mass += [np.array(f['Group/GroupMass'])]
 
     fileinst += 1
@@ -1094,17 +1094,19 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
 
   return tuple(ret)
 
-def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':False,}):
+def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':False,'group':False},group_opts={}):
 
   '''
   
-  Read subhalos from SUBFIND catalogue.
+  Read subhalos from SUBFIND catalogue. Also read groups.
   
   Parameters:
     
     fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
 
     opts: which fields to read and return
+
+    group_opts: for groups, which fields to read and return
     
   Returns:
     
@@ -1115,6 +1117,20 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
     mass: mass array, shape (NH,)
 
     lentype: particle count array (by type), shape (NH,Ntype)
+    
+    group: subhalo's group, shape (NH,)
+
+    group_pos: position array, shape (NG,3), comoving
+
+    group_vel: 
+
+    group_mass: 
+  
+    group_lentype: 
+
+    group_firstsub: 
+
+    group_numsubs: 
     
     header: a dict with header info, use list(header) to see the fields
   
@@ -1127,6 +1143,13 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
   if opts.get('vel'): vel = []
   if opts.get('mass'): mass = []
   if opts.get('lentype'): lentype = []
+  if opts.get('group'): group = []
+  if group_opts.get('pos'): group_pos = []
+  if group_opts.get('vel'): group_vel = []
+  if group_opts.get('mass'): group_mass = []
+  if group_opts.get('lentype'): group_lentype = []
+  if group_opts.get('firstsub'): group_firstsub = []
+  if group_opts.get('numsubs'): group_numsubs = []
   while fileinst < numfiles:
 
     if numfiles == 1:
@@ -1141,8 +1164,6 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
       header = dict(f['Header'].attrs)
 
       ScaleFactor = 1./(1+header['Redshift'])
-      NH = header['Nsubgroups_ThisFile']
-      NHtot = header['Nsubgroups_Total']
       numfiles = header['NumFiles']
       BoxSize = header['BoxSize']
 
@@ -1155,9 +1176,25 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
           mass += [np.array(f['Subhalo/SubhaloMass'])]
         if opts.get('lentype'):
           lentype += [np.array(f['Subhalo/SubhaloLenType'])]
+        if opts.get('group'):
+          group += [np.array(f['Subhalo/SubhaloGroupNr'])]
       except KeyError as e:
         pass
-        #print(e)
+      try:
+        if group_opts.get('pos'):
+          group_pos += [np.array(f['Group/GroupPos'])]
+        if group_opts.get('vel'):
+          group_vel += [np.array(f['Group/GroupVel']) * np.sqrt(ScaleFactor)]
+        if group_opts.get('mass'):
+          group_mass += [np.array(f['Group/GroupMass'])]
+        if group_opts.get('lentype'):
+          group_lentype += [np.array(f['Group/GroupLenType'])]
+        if group_opts.get('firstsub'):
+          group_firstsub += [np.array(f['Group/GroupFirstSub'])]
+        if group_opts.get('numsubs'):
+          group_numsubs += [np.array(f['Group/GroupNsubs'])]
+      except KeyError as e:
+        pass
 
     fileinst += 1
 
@@ -1166,6 +1203,13 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'lentype':
   if opts.get('vel'): ret += [np.concatenate(vel,axis=0)]
   if opts.get('mass'): ret += [np.concatenate(mass)]
   if opts.get('lentype'): ret += [np.concatenate(lentype,axis=0)]
+  if opts.get('group'): ret += [np.concatenate(group)]
+  if group_opts.get('pos'): ret += [np.concatenate(group_pos,axis=0)]
+  if group_opts.get('vel'): ret += [np.concatenate(group_vel,axis=0)]
+  if group_opts.get('mass'): ret += [np.concatenate(group_mass)]
+  if group_opts.get('lentype'): ret += [np.concatenate(group_lentype,axis=0)]
+  if group_opts.get('firstsub'): ret += [np.concatenate(group_firstsub)]
+  if group_opts.get('numsubs'): ret += [np.concatenate(group_numsubs)]
   ret += [header]
 
   return tuple(ret)
@@ -1199,84 +1243,11 @@ def read_params(fileprefix):
 
   return params
 
-def group_subhalo_positional_data(fileprefix):
-
-  '''
-
-  Get subhalo/group ID+length data; useful to assign particles.
-  
-  Parameters:
-    
-    fileprefix: input file prefix (e.g., fof_subhalo_tab_000, not fof_subhalo_tab_000.0.hdf5)
-
-  Returns:
-    
-    group_length
-
-    group_firstsub
-
-    group_numsubs
-
-    subhalo_length
-
-    subhalo_group
-
-    header: a dict with header info, use list(header) to see the fields
-
-    
-  '''
-
-  filebase, numfiles = _get_filebase(fileprefix)
-
-  fileinst = 0
-  group_length = []
-  group_firstsub = []
-  group_numsubs = []
-  subhalo_length = []
-  subhalo_group = []
-  group = 0
-  subhalo = 0
-  while fileinst < numfiles:
-
-    if numfiles == 1:
-      filename = filebase
-    else:
-      filename = filebase%fileinst
-
-    with h5py.File(filename, 'r') as f:
-      print('reading %s'%filename)
-
-      header = dict(f['Header'].attrs)
-      numfiles = header['NumFiles']
-
-      try:
-        group_length += [np.array(f['Group/GroupLenType'])]
-        group_firstsub += [np.array(f['Group/GroupFirstSub'])]
-        group_numsubs += [np.array(f['Group/GroupNsubs'])]
-        group += group_length[-1].shape[0]
-      except Exception as e:
-        pass
-      try:
-        subhalo_length += [np.array(f['Subhalo/SubhaloLenType'])]
-        subhalo_group += [np.array(f['Subhalo/SubhaloGroupNr'])]
-        subhalo += subhalo_length[-1].shape[0]
-      except Exception as e:
-        pass
-
-    fileinst += 1
-
-  return (np.concatenate(group_length),
-          np.concatenate(group_firstsub),
-          np.concatenate(group_numsubs),
-          np.concatenate(subhalo_length),
-          np.concatenate(subhalo_group),
-          header)
-
-def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
+def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
 
   '''
   
-  Read particles from GADGET HDF5 snapshot. Return only particles matching filter.
+  Read specific particles from GADGET HDF5 snapshot and return data in the same shape.
   
   Parameters:
     
@@ -1284,23 +1255,32 @@ def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
 
     ID_list: particle IDs (any shape)
 
+    opts: which fields to read and return
+
     chunksize: restrict number of particles to handle at a time (to save memory).
     
   Returns:
+
+    pos: comoving position (shape ID_list.shape + (3,))
+
+    vel: particle types (shape ID_list.shape + (3,))
     
     index: particle indices within snapshot (same shape as ID_list)
 
-    ptype: particle types (same shape as ID_list)
+    type: particle types (same shape as ID_list)
 
     header: a dict with header info, use list(header) to see the fields
   
   '''
+
   filebase, numfiles = _get_filebase(fileprefix)
 
   fileinst = 0
   ID_list = np.array(ID_list)
-  index = np.zeros(np.shape(ID_list),dtype=np.int64)-1
-  ptype = np.zeros(np.shape(ID_list),dtype=np.int32)-1
+  if opts.get('pos'): pos = np.zeros(np.shape(ID_list) + (3,)) * np.nan
+  if opts.get('vel'): vel = np.zeros(np.shape(ID_list) + (3,)) * np.nan
+  if opts.get('index'): index = np.zeros(np.shape(ID_list),dtype=np.int64)-1
+  if opts.get('type'):  ptype = np.zeros(np.shape(ID_list),dtype=np.int32)-1
   header = None
   while fileinst < numfiles:
 
@@ -1317,6 +1297,7 @@ def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
 
       header = dict(f['Header'].attrs)
 
+      ScaleFactor = 1./(1+header['Redshift'])
       NP = header['NumPart_ThisFile']
       NPtot = header['NumPart_Total']
       numfiles = header['NumFilesPerSnapshot']
@@ -1344,8 +1325,14 @@ def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
           if np.any(in_idx):
             sort_idx = ID.argsort()
             test = np.searchsorted(ID,ID_list[in_idx],sorter=sort_idx)
-            index[in_idx] = sort_idx[test] + i00[typ]
-            ptype[in_idx] = typ
+            if opts.get('pos'):
+              pos[in_idx] = np.array(f['PartType%d/Coordinates'%typ][iread])[sort_idx[test]]
+            if opts.get('vel'):
+              vel[in_idx] = np.array(f['PartType%d/Velocities'%typ][iread])[sort_idx[test]] * np.sqrt(ScaleFactor)
+            if opts.get('index'):
+              index[in_idx] = sort_idx[test] + i00[typ]
+            if opts.get('type'):
+              ptype[in_idx] = typ
 
           Nleft -= Nc
           i0 += Nc
@@ -1353,7 +1340,14 @@ def particle_positional_data(fileprefix, ID_list, chunksize=1048576):
 
     fileinst += 1
 
-  return index, ptype, header
+  ret = []
+  if opts.get('pos'): ret += [pos]
+  if opts.get('vel'): ret += [vel]
+  if opts.get('index'): ret += [index]
+  if opts.get('type'): ret += [ptype]
+  ret += [header]
+
+  return tuple(ret)
 
 def particle_subhalo_data(fileprefix,index,ptype):
 

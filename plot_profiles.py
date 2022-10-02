@@ -17,14 +17,14 @@ def run(argv):
 
   # sort halos, highest mass first
   sort = np.argsort(hmass)[::-1]
-  hpos = hpos[:,sort]
+  hpos = hpos[sort]
   hmass = hmass[sort]
   
   ax = plt.figure().gca()
 
   # cycle over halos
   for i in range(min(num_halos,len(hmass))):
-    r,rho = density_profile(pos-hpos[:,i:i+1],mass,BoxSize=BoxSize)
+    r,rho = density_profile(pos-hpos[i:i+1].T,mass,BoxSize=BoxSize)
     ax.loglog(r,rho)
 
   ax.set_xlabel(r'$r$ (kpc/$h$)')
