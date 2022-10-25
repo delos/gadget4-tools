@@ -1281,6 +1281,8 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
 
   filebase, numfiles = _get_filebase(fileprefix)
 
+  assume_unique = np.unique(ID_list).size == ID_list.size
+
   fileinst = 0
   ID_list = np.array(ID_list)
   if opts.get('pos'): pos = np.zeros(np.shape(ID_list) + (3,)) * np.nan
@@ -1326,7 +1328,7 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
 
           ID = np.array(f['PartType%d/ParticleIDs'%typ][iread])
 
-          in_idx = np.isin(ID_list,ID,assume_unique=True) # shape ID_list.shape
+          in_idx = np.isin(ID_list,ID,assume_unique=assume_unique) # shape ID_list.shape
 
           if np.any(in_idx):
             sort_idx = ID.argsort()
