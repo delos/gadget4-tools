@@ -423,23 +423,38 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
           'subhalo':subhalo_number,
           'particle':np.array(f['Subhalo/SubhaloIDMostbound'])[index]}
 
-        # get the subhalo and group mass. Group mass might be in an earlier file.
-        if ID['group']>=ginst:
-          mass = {'group':np.array(f['Group/GroupMass'])[ID['group']-ginst],
-            'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
-        else:
+        # get the subhalo and group mass. Group mass might be in an earlier file...
+        if ID['group'] < ginst:
           ginst2 = ginst
           fileinst2 = fileinst
           while ID['group'] < ginst2:
             fileinst2 -= 1
             filename_sub2 = filebase_sub%fileinst2
             with h5py.File(filename_sub2, 'r') as f2:
-              print('reading %s'%filename_sub2)
+              print('reading %s [back]'%filename_sub2)
               header2 = dict(f2['Header'].attrs)
               ginst2 -= int(header2['Ngroups_ThisFile'])
               if ID['group'] >= ginst2:
                 mass = {'group':np.array(f2['Group/GroupMass'])[ID['group']-ginst2],
                   'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
+        elif ID['group'] >= ginst + int(header['Ngroups_ThisFile']): # or later file.
+          ginst2 = ginst
+          fileinst2 = fileinst
+          ng2 = int(header['Ngroups_ThisFile'])
+          while ID['group'] >= ginst2 + ng2:
+            fileinst2 += 1
+            filename_sub2 = filebase_sub%fileinst2
+            with h5py.File(filename_sub2, 'r') as f2:
+              print('reading %s [ahead]'%filename_sub2)
+              header2 = dict(f2['Header'].attrs)
+              ginst2 += ng2 
+              ng2 = int(header2['Ngroups_ThisFile'])
+              if ID['group'] < ginst2 + ng2:
+                mass = {'group':np.array(f2['Group/GroupMass'])[ID['group']-ginst2],
+                  'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
+        else:
+          mass = {'group':np.array(f['Group/GroupMass'])[ID['group']-ginst],
+            'subhalo':np.array(f['Subhalo/SubhaloMass'])[index]}
 
         # get best-matching descendent (decided already by SUBFIND)
         try:

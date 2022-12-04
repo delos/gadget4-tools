@@ -73,8 +73,8 @@ def run(argv):
   except: count = None
 
   # read halos
-  hpos, hmass, hrad, hlen, glen, g1sub, gNsub, header = read_subhalos(argv[2],
-    opts={'pos':True,'mass':True,'radius':True,'lentype':True,},
+  hpos, hvel, hmass, hrad, hlen, glen, g1sub, gNsub, header = read_subhalos(argv[2],
+    opts={'pos':True,'vel':True,'mass':True,'radius':True,'lentype':True,},
     group_opts={'lentype':True,'firstsub':True,'numsubs':True},)
   NH = hlen.shape[0]
   NT = hlen.shape[1]
@@ -90,6 +90,8 @@ def run(argv):
   rlist = None
   hmasslist = np.zeros(nwrite,dtype=np.float32)
   hradlist = np.zeros(nwrite,dtype=np.float32)
+  hposlist = np.zeros((nwrite,3),dtype=np.float32)
+  hvellist = np.zeros((nwrite,3),dtype=np.float32)
 
   part_index = np.zeros(NT,dtype=int)
   ih = 0
@@ -138,11 +140,13 @@ def run(argv):
       
       hmasslist[idx] = hmass[ih]
       hradlist[idx] = hrad[ih]
+      hposlist[idx] = hpos[ih]
+      hvellist[idx] = hvel[ih]
 
       iwrite += 1
     part_index = np.sum(glen[:ig+1],axis=0)
 
-  np.savez(outname,r=rlist,rho=rholist,ru=rulist,m=mlist,N=ctlist,M=hmasslist,R=hradlist)
+  np.savez(outname,r=rlist,rho=rholist,ru=rulist,m=mlist,N=ctlist,M=hmasslist,R=hradlist,X=hposlist,V=hvellist,a=1./(1+header['Redshift']))
 
 if __name__ == '__main__':
   from sys import argv
