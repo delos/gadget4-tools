@@ -38,6 +38,7 @@ def run(argv):
   print('delta=%.4f, e=%.4f, p=%.4f'%(d,e,p))
 
   l = d * np.array([1+3*e+p,1-2*p,1-3*e+p])/3. # d = np.sum(l)
+  print('eigenvalues %.4f,%.4f,%.4f'%tuple(l))
 
   if N is None:
     print('preparing glass from %s (tiled %d)'%(glassfile,glassfac))

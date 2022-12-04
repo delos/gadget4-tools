@@ -11,7 +11,7 @@ powers: power power_of_shell_corrected power_of_shell_corrected_frommesh power_o
 
 fields: gen_field potential_field
 
-peaks: find_peaks pos_to_peak peak_parameters
+peaks: find_peaks pos_to_peak peak_parameters peak_profile
 
 power_of_shell_corrected: ./src/power_of_shell_corrected.c
 	g++ $(FFTW_INCL) $(FFTW_LIBS) -o ./bin/power_of_shell_corrected ./src/power_of_shell_corrected.c
@@ -39,4 +39,7 @@ pos_to_peak: ./src/pos_to_peak.c
 
 peak_parameters: ./src/peak_parameters.c
 	mpicc $(FFTW_INCL) $(FFTW_LIBS) -lfftw3f_mpi $(GSL_INCL) $(GSL_LIBS) -lm -o ./bin/peak_parameters ./src/peak_parameters.c
+
+peak_profile: ./src/peak_profile.c
+	mpicc $(FFTW_INCL) $(FFTW_LIBS) -lfftw3f_mpi $(GSL_INCL) $(GSL_LIBS) -lm -o ./bin/peak_profile ./src/peak_profile.c
 
