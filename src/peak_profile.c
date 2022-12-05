@@ -300,7 +300,8 @@ void save_profiles() {
   for(p=0;p<npeak;p++) {
     sprintf(name,"peak_profile_%04d.txt",halon[p]);
     fp = fopen(name,"w");
-    fprintf(fp,"# %d %lg %lg %lg %lg",halon[p],nupk[p]*sigma0,xpk[p]*sigma2,epk[p],ppk[p]);
+    fprintf(fp,"# %d %d %d %d\n",halon[p],ih[p],jh[p],kh[p]);
+    fprintf(fp,"# %lg %lg %lg %lg\n",nupk[p]*sigma0,xpk[p]*sigma2,epk[p],ppk[p]);
     for(i=0;i<nr;i++) fprintf(fp,"%lg %lg %lg %lg\n",rbin[i],deltar[i+nr*p],Deltar[i+nr*p],zetar[i+nr*p]);
     fclose(fp);
   }
