@@ -905,7 +905,7 @@ def list_snapshots():
 
   return names, headers
 
-def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False,'acc':False,'pot':False},chunksize=1048576):
+def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False,'acc':False,'pot':False},chunksize=1048576,verbose=True):
 
   '''
   
@@ -994,7 +994,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
       filename = filebase%fileinst
 
     with h5py.File(filename, 'r') as f:
-      print('reading %s'%filename)
+      if verbose: print('reading %s'%filename)
 
       header = dict(f['Header'].attrs)
 
@@ -1010,7 +1010,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
           types = np.arange(len(NPtot))
         else:
           types = np.intersect1d(type_list,np.arange(len(NPtot)))
-          print('  types ' + ', '.join([str(x) for x in types]))
+          if verbose: print('  types ' + ', '.join([str(x) for x in types]))
         i00 = np.zeros(len(NPtot),dtype=np.int64)
 
       nreadTot = 0
@@ -1093,7 +1093,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
           i0 += Nc
           i00[typ] += Nc
 
-    print('  ' + str(nreadTot) + ' particles match filter')
+    if verbose: print('  ' + str(nreadTot) + ' particles match filter')
     fileinst += 1
 
   ret = []

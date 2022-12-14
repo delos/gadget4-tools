@@ -29,6 +29,9 @@ OmegaLambda              0.6911
 OmegaBaryon              0.04
 HubbleParam              0.6774      % only relevant for gas physics
 Hubble                   0.1         % h km/s/kpc
+%OmegaR                   9.117e-5    % only if compiled with RADIATION
+%OmegaSmooth              0.0         % only if compiled with SMOOTHMATTER
+%FracNu                   0.4089      % only if RADIATION and NGENIC
 
 %---- System of units
 UnitLength_in_cm         3.085678e21 % in cm/h, corresponding to 1 kpc/h
