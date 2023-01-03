@@ -21,7 +21,7 @@ int main(int argc, char **argv) {
   FILE *fp;
 
   if(argc<2) {
-    printf("usage: exe <gridfile> [troughs=0] [imin,imax]\n");
+    printf("usage: exe <gridfile> [troughs=0] [numbered=0] [imin,imax]\n");
     return 1;
   }
 
@@ -34,10 +34,13 @@ int main(int argc, char **argv) {
   int troughs = 0;
   if(argc>2) troughs = atoi(argv[2]);
 
+  int numbered = 0;
+  if(argc>3) numbered = atoi(argv[3]);
+
   int imin = 0;
   int imax = n-1;
-  if(argc>3) {
-    char *token = strtok(argv[3],",");
+  if(argc>4) {
+    char *token = strtok(argv[4],",");
     if(token) {
       imin = atoi(token);
       token = strtok(NULL,",");
@@ -112,13 +115,19 @@ BREAK:;
 
   // save to file
   char outfile[300];
-  sprintf(outfile,"%s_peaks.txt",argv[1]);
+  if(numbered) sprintf(outfile,"%s_numberedpeaks.txt",argv[1]);
+  else sprintf(outfile,"%s_peaks.txt",argv[1]);
   if(imax-imin+1 == n) fp = fopen(outfile,"w");
   else fp = fopen(outfile,"a");
   for(i=0; i<peak_ct; i++) {
-    fprintf(fp,"%d %d %d %g\n",
-        peaks[3*i],peaks[3*i+1],peaks[3*i+2],
-        delta[peaks[3*i+2]+n*(peaks[3*i+1]+n*(peaks[3*i] - imin + i0))]);
+    if(numbered)
+      fprintf(fp,"%d %d %d %d %g\n",i,
+          peaks[3*i],peaks[3*i+1],peaks[3*i+2],
+          delta[peaks[3*i+2]+n*(peaks[3*i+1]+n*(peaks[3*i] - imin + i0))]);
+    else
+      fprintf(fp,"%d %d %d %g\n",
+          peaks[3*i],peaks[3*i+1],peaks[3*i+2],
+          delta[peaks[3*i+2]+n*(peaks[3*i+1]+n*(peaks[3*i] - imin + i0))]);
     fflush(fp);
   }
   fclose(fp);

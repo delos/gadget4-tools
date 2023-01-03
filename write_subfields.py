@@ -4,6 +4,7 @@ from snapshot_functions import list_snapshots, read_particles_filter
 from pathlib import Path
 import h5py
 from scipy.spatial import cKDTree
+from scipy.interpolate import interp1d
 
 # memory usage is 16 bytes per particle + 4 bytes per cell
 # more for NN
@@ -105,14 +106,24 @@ def run(argv):
 
   try:
     _data = np.loadtxt(argv[3])
-    _ss = _data[:,0]
-    _x = _data[:,2]
-    _y = _data[:,3]
-    _z = _data[:,4]
-    print('using trace file')
+    if np.allclose((_data[:,0]+.5)%1-.5,0.,atol=1e-4):
+      _ss = _data[:,0].astype(int)
+      _x = _data[:,2]
+      _y = _data[:,3]
+      _z = _data[:,4]
+      print('using trace file')
+      postype = 'trace'
+    else:
+      _t = _data[:,0]
+      _pos = _data[:,1:4]
+      sort = np.argsort(_t)
+      xyz_interp = interp1d(_t[sort],_pos[sort],axis=0,bounds_error=False,fill_value='extrapolate')
+      print('using position file')
+      postype = 'pos'
   except Exception as e:
-    print('using coordinates')
     x,y,z = [float(x) for x in argv[3].split(',')]
+    print('using coordinates')
+    postype = 'fixed'
   
   r = float(argv[4])
   print('radius %g'%r)
@@ -169,7 +180,7 @@ def run(argv):
     outname = outbase + filename[-4:] + '.bin'
     scale = headers[i]['Time']
 
-    try:
+    if postype == 'trace':
       if snapshot_number < _ss[0]:
         center = [_x[0],_y[0],_z[0]]
       elif snapshot_number > _ss[-1]:
@@ -180,7 +191,9 @@ def run(argv):
           _y[_ss==snapshot_number][0],
           _z[_ss==snapshot_number][0],
           ]
-    except:
+    elif postype == 'pos':
+      center = xyz_interp(scale)
+    elif postype == 'fixed':
       center = [x,y,z]
 
     if phys:

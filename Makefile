@@ -11,7 +11,7 @@ powers: power power_of_shell_corrected power_of_shell_corrected_frommesh power_o
 
 fields: gen_field potential_field
 
-peaks: find_peaks pos_to_peak peak_parameters peak_profile
+peaks: find_peaks pos_to_peak peak_parameters peak_profile tidal_tensor_profile
 
 power_of_shell_corrected: ./src/power_of_shell_corrected.c
 	g++ $(FFTW_INCL) $(FFTW_LIBS) -o ./bin/power_of_shell_corrected ./src/power_of_shell_corrected.c
@@ -42,4 +42,7 @@ peak_parameters: ./src/peak_parameters.c
 
 peak_profile: ./src/peak_profile.c
 	mpicc $(FFTW_INCL) $(FFTW_LIBS) -lfftw3f_mpi $(GSL_INCL) $(GSL_LIBS) -lm -o ./bin/peak_profile ./src/peak_profile.c
+
+tidal_tensor_profile: ./src/tidal_tensor_profile.c
+	mpicc $(FFTW_INCL) $(FFTW_LIBS) -lfftw3f_mpi $(GSL_INCL) $(GSL_LIBS) -lm -o ./bin/tidal_tensor_profile ./src/tidal_tensor_profile.c
 
