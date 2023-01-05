@@ -1109,7 +1109,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
 
   return tuple(ret)
 
-def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':False,'lentype':False,'group':False},group_opts={}):
+def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':False,'lentype':False,'group':False},group_opts={},sodef='Mean200'):
 
   '''
   
@@ -1122,6 +1122,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
     opts: which fields to read and return
 
     group_opts: for groups, which fields to read and return
+
+    sodef: spherical overdensity definition for groups, default 'Mean200'
     
   Returns:
     
@@ -1141,7 +1143,9 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
 
     group_vel: 
 
-    group_mass: 
+    group_mass: FOF mass
+
+    group_somass: SO mass
   
     group_lentype: 
 
@@ -1165,6 +1169,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
   if group_opts.get('pos'): group_pos = []
   if group_opts.get('vel'): group_vel = []
   if group_opts.get('mass'): group_mass = []
+  if group_opts.get('somass'): group_somass = []
   if group_opts.get('lentype'): group_lentype = []
   if group_opts.get('firstsub'): group_firstsub = []
   if group_opts.get('numsubs'): group_numsubs = []
@@ -1207,6 +1212,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
           group_vel += [np.array(f['Group/GroupVel']) * np.sqrt(ScaleFactor)]
         if group_opts.get('mass'):
           group_mass += [np.array(f['Group/GroupMass'])]
+        if group_opts.get('somass'):
+          group_somass += [np.array(f['Group/Group_M_%s'%sodef])]
         if group_opts.get('lentype'):
           group_lentype += [np.array(f['Group/GroupLenType'])]
         if group_opts.get('firstsub'):
@@ -1228,6 +1235,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
   if group_opts.get('pos'): ret += [np.concatenate(group_pos,axis=0)]
   if group_opts.get('vel'): ret += [np.concatenate(group_vel,axis=0)]
   if group_opts.get('mass'): ret += [np.concatenate(group_mass)]
+  if group_opts.get('somass'): ret += [np.concatenate(group_somass)]
   if group_opts.get('lentype'): ret += [np.concatenate(group_lentype,axis=0)]
   if group_opts.get('firstsub'): ret += [np.concatenate(group_firstsub)]
   if group_opts.get('numsubs'): ret += [np.concatenate(group_numsubs)]
