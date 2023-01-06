@@ -1468,3 +1468,59 @@ def particle_subhalo_data(fileprefix,index,ptype):
     ret += [np.concatenate(pos), grouppos]
 
   return tuple(ret + [header])
+
+def subhalo_desc(snapshot_number,subhalo_numbers):
+
+  '''
+  
+  For a list of subhalo numbers, get the list of descendants.
+  
+  Parameters:
+    
+    snapshot_number
+
+    subhalo_numbers
+    
+  Returns:
+    
+    desc: best-scoring descendant subhalo
+  
+    header: a dict with header info, use list(header) to see the fields
+    
+  '''
+
+  prefix_desc = fileprefix_subhalo_desc%(snapshot_number,snapshot_number)
+
+  filebase, numfiles = _get_filebase(prefix_desc)
+
+  subhalo_numbers = np.array(subhalo_numbers)
+  desc = np.full_like(subhalo_numbers,-1)
+
+  fileinst = 0
+  hinst = 0
+  while fileinst < numfiles:
+
+    if numfiles == 1:
+      filename = filebase
+    else:
+      filename = filebase%fileinst
+
+    with h5py.File(filename, 'r') as f:
+      print('reading %s'%filename)
+
+      header = dict(f['Header'].attrs)
+      numfiles = header['NumFiles']
+
+      if header['Nsubhalos_ThisFile'] > 0:
+        # get best-matching descendent (decided already by SUBFIND)
+        idx = subhalo_numbers-hinst
+        valid = (0<idx)&(idx<header['Nsubhalos_ThisFile'])
+        desc[valid] = np.array(f['Subhalo/DescSubhaloNr'])[idx[valid]]
+
+      # advance halo indices as we advance in file number
+      hinst += int(header['Nsubhalos_ThisFile'])
+
+    fileinst += 1
+
+  return desc, header
+
