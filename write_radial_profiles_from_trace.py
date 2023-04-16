@@ -1,6 +1,6 @@
 import numpy as np
 from numba import njit
-from snapshot_functions import list_snapshots, read_particles_filter
+from snapshot_functions import list_snapshots, read_header, read_particles_filter
 
 @njit
 def profile(pos,vel,mass,rmin,rmax,nr):
@@ -70,6 +70,7 @@ def run(argv):
 
   _data = np.loadtxt(argv[2])
   _ss = _data[:,0]
+  _t  = _data[:,1]
   _x  = _data[:,2]
   _y  = _data[:,3]
   _z  = _data[:,4]
@@ -105,22 +106,25 @@ def run(argv):
 
     outname = outbase + filename[-4:] + '.txt'
 
-    if snapshot_number < _ss[0]:
+    header = read_header(filename)
+    time = header['Time']
+
+    if time < _t[0]:
       center = [_x[0],_y[0],_z[0]]
       center_v = np.zeros(3)
-    elif snapshot_number > _ss[-1]:
+    elif time > _t[-1]:
       center = [_x[-1],_y[-1],_z[-1]]
       center_v = np.zeros(3)
     else:
       center = [
-        _x[_ss==snapshot_number][0],
-        _y[_ss==snapshot_number][0],
-        _z[_ss==snapshot_number][0],
+        np.interp(time,_t,_x),
+        np.interp(time,_t,_y),
+        np.interp(time,_t,_z),
         ]
       center_v = np.array([
-        _vx[_ss==snapshot_number][0],
-        _vy[_ss==snapshot_number][0],
-        _vz[_ss==snapshot_number][0],
+        np.interp(time,_t,_vx),
+        np.interp(time,_t,_vy),
+        np.interp(time,_t,_vz),
         ])
 
     pos, vel, mass, header = read_particles_filter(filename,center=center,radius=rmax,type_list=types,opts={'mass':True,'pos':True,'vel':True})

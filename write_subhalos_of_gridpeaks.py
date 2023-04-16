@@ -59,7 +59,7 @@ def run(argv):
   ssname = fileprefix_snapshot%(ss,ss)
   grpname = fileprefix_subhalo%(ss,ss)
 
-  _index, _type, header = particles_by_ID(ssname, IDs, opts={'index':True,'type':True})
+  positions, _index, _type, header = particles_by_ID(ssname, IDs, opts={'pos':True,'index':True,'type':True})
 
   _sublen, _grplen, _grpfirstsub, _grpnumsubs, _ = read_subhalos(grpname,opts={'lentype':True},group_opts={'lentype':True,'firstsub':True,'numsubs':True})
 
@@ -69,7 +69,7 @@ def run(argv):
     groups[idx] = group
     subhalos[idx] = subhalo
 
-  np.savez('gridpeak_halos_%03d.npz'%ss,snapshot=ss, peaks=peakn, IDs=IDs, groups=groups, subhalos=subhalos, )
+  np.savez('gridpeak_halos_%03d.npz'%ss,snapshot=ss, peaks=peakn, IDs=IDs, groups=groups, subhalos=subhalos, positions=positions)
 
   return
 

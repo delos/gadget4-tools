@@ -8,7 +8,7 @@ cmap = cm.viridis
 def run(argv):
   
   if len(argv) < 3:
-    print('python script.py <filename> <axis,min,max> [log=1] [x min,max] [y min,max]')
+    print('python script.py <filename> <axis,min,max> [log=1,positive=0,square=0] [x min,max] [y min,max]')
     return 1
   
   filename = argv[1]
@@ -18,8 +18,16 @@ def run(argv):
   amax = int(axis[2])
   axis = int(axis[0])
 
-  if len(argv) > 3: log = int(argv[3])
-  else: log = 1
+  log = 1
+  positive = 0
+  square = 0
+  if len(argv) > 3:
+    logsq = argv[3].split(',')
+    log = int(logsq[0])
+    if len(logsq) > 1:
+      positive = int(logsq[1])
+    if len(logsq) > 2:
+      square = int(logsq[2])
 
   try: xlim = np.array(argv[4].split(','),dtype=int)
   except: xlim = None
@@ -42,6 +50,11 @@ def run(argv):
   delta.shape = (only_read[1]-only_read[0]+1,GridSize,GridSize)
   bins = np.arange(GridSize+1)
 
+  if square:
+    if not positive:
+      delta += 1.
+    delta *= delta
+
   if axis == 0:
     delta = np.mean(delta,axis=0)
     if xlim is not None:
@@ -54,10 +67,18 @@ def run(argv):
   if ylim is not None:
     delta = delta[:,ylim[0]:ylim[1]+1]
 
+  if square:
+    delta = np.sqrt(delta)
+    if not positive:
+      delta -= 1.
+
   if log:
-    np.log10(1+delta,out=delta)
+    if not positive:
+      np.log10(1+delta,out=delta)
+    else:
+      np.log10(delta,out=delta)
   
-  fig, ax = plt.subplots(figsize=(12., 10))
+  fig, ax = plt.subplots(figsize=(6., 5))
   im = ax.imshow(delta.T,origin='lower')
   cbar = fig.colorbar(im, ax=ax)
   ax.patch.set_facecolor('k')

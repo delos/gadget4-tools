@@ -1,7 +1,7 @@
 import numpy as np
 import h5py
+from sys import argv
 
-nproc = 480
 grid = 4096
 
 filebase = 'Tpeaks_%.7f_%04d.txt'
@@ -35,18 +35,23 @@ with h5py.File('Tpeaks.hdf5', 'w') as f:
     d = []
     e = []
     p = []
-    for j in range(nproc):
-      print(j)
+    j = 0
+    while True:
       try:
         data = np.loadtxt(filebase%(r,j))
       except:
-        continue
+        break
       if data.size == 0:
+        j += 1
         continue
+      if np.size(data.shape) == 1:
+        data.shape = (1,-1)
+      print('  reading ' + filebase%(r,j))
       x += [data[:,0:3]/grid]
       d += [data[:,3]]
       e += [data[:,4]]
       p += [data[:,5]]
+      j += 1
     x = np.concatenate(x,axis=0,dtype=np.float32)
     d = np.concatenate(d,dtype=np.float32)
     e = np.concatenate(e,dtype=np.float32)

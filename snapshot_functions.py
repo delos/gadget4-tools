@@ -1139,6 +1139,12 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
     
     group: subhalo's group, shape (NH,)
 
+    rank: subhalo rank in group
+
+    parentrank: rank of parent subhalo within group
+
+    mostbound: ID of most bound particle
+
     group_pos: position array, shape (NG,3), comoving
 
     group_vel: 
@@ -1166,6 +1172,9 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
   if opts.get('radius'): radius = []
   if opts.get('lentype'): lentype = []
   if opts.get('group'): group = []
+  if opts.get('rank'): rank = []
+  if opts.get('parentrank'): parentrank = []
+  if opts.get('mostbound'): mostbound = []
   if group_opts.get('pos'): group_pos = []
   if group_opts.get('vel'): group_vel = []
   if group_opts.get('mass'): group_mass = []
@@ -1203,6 +1212,12 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
           lentype += [np.array(f['Subhalo/SubhaloLenType'])]
         if opts.get('group'):
           group += [np.array(f['Subhalo/SubhaloGroupNr'])]
+        if opts.get('rank'):
+          rank += [np.array(f['Subhalo/SubhaloRankInGr'])]
+        if opts.get('parentrank'):
+          parentrank += [np.array(f['Subhalo/SubhaloParentRank'])]
+        if opts.get('mostbound'):
+          mostbound += [np.array(f['Subhalo/SubhaloIDMostbound'])]
       except KeyError as e:
         pass
       try:
@@ -1232,6 +1247,9 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
   if opts.get('radius'): ret += [np.concatenate(radius)]
   if opts.get('lentype'): ret += [np.concatenate(lentype,axis=0)]
   if opts.get('group'): ret += [np.concatenate(group)]
+  if opts.get('rank'): ret += [np.concatenate(rank)]
+  if opts.get('parentrank'): ret += [np.concatenate(parentrank)]
+  if opts.get('mostbound'): ret += [np.concatenate(mostbound)]
   if group_opts.get('pos'): ret += [np.concatenate(group_pos,axis=0)]
   if group_opts.get('vel'): ret += [np.concatenate(group_vel,axis=0)]
   if group_opts.get('mass'): ret += [np.concatenate(group_mass)]
@@ -1272,6 +1290,35 @@ def read_params(fileprefix):
 
   return params
 
+def read_header(fileprefix):
+
+  '''
+  
+  Read params from any HDF5 output.
+  
+  Parameters:
+    
+    fileprefix: input file prefix (e.g., snapshot_000, not snapshot_000.0.hdf5)
+
+  Returns:
+    
+    header
+
+  
+  '''
+
+  filebase, numfiles = _get_filebase(fileprefix)
+
+  if numfiles == 1:
+    filename = filebase
+  else:
+    filename = filebase%0
+
+  with h5py.File(filename, 'r') as f:
+    header = dict(f['Header'].attrs)
+
+  return header
+
 def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
 
   '''
@@ -1308,9 +1355,9 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
 
   fileinst = 0
   ID_list = np.array(ID_list)
+  index = np.zeros(np.shape(ID_list),dtype=np.int64)-1
   if opts.get('pos'): pos = np.zeros(np.shape(ID_list) + (3,)) * np.nan
   if opts.get('vel'): vel = np.zeros(np.shape(ID_list) + (3,)) * np.nan
-  if opts.get('index'): index = np.zeros(np.shape(ID_list),dtype=np.int64)-1
   if opts.get('type'):  ptype = np.zeros(np.shape(ID_list),dtype=np.int32)-1
   header = None
   while fileinst < numfiles:
@@ -1356,12 +1403,11 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
           if np.any(in_idx):
             sort_idx = ID.argsort()
             test = np.searchsorted(ID,ID_list[in_idx],sorter=sort_idx)
+            index[in_idx] = sort_idx[test] + i00[typ]
             if opts.get('pos'):
               pos[in_idx] = np.array(f['PartType%d/Coordinates'%typ][iread])[sort_idx[test]]
             if opts.get('vel'):
               vel[in_idx] = np.array(f['PartType%d/Velocities'%typ][iread])[sort_idx[test]] * np.sqrt(ScaleFactor)
-            if opts.get('index'):
-              index[in_idx] = sort_idx[test] + i00[typ]
             if opts.get('type'):
               ptype[in_idx] = typ
 
