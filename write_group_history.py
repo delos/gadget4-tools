@@ -19,7 +19,7 @@ def get_groups_subhalos(index, group_length, group_firstsub, group_numsubs, subh
 def run(argv):
   
   if len(argv) < 2:
-    print('python script.py <ss_halo.npy> [use most bound=1] [out-file.npz]')
+    print('python script.py <ss,grp>')
     return 1
 
   use_mostbound = True

@@ -7,25 +7,27 @@ fileprefix_snapshot = 'snapdir_%03d/snapshot_%03d'
 fileprefix_subhalo = 'groups_%03d/fof_subhalo_tab_%03d'
 fileprefix_subhalo_desc = 'groups_%03d/subhalo_desc_%03d'
 fileprefix_subhalo_prog = 'groups_%03d/subhalo_prog_%03d'
+file_extension = '.hdf5'
 
 def _get_filebase(fileprefix):
   filepath = [
-    Path(fileprefix + '.hdf5'),
-    Path(fileprefix + '.0.hdf5'),
+    Path(fileprefix + file_extension),
+    Path(fileprefix + '.0' + file_extension),
     Path(fileprefix),
     ]
 
   if filepath[0].is_file():
-    filebase = fileprefix + '.hdf5'
+    filebase = fileprefix + file_extension
     numfiles = 1
   elif filepath[1].is_file():
-    filebase = fileprefix + '.%d.hdf5'
+    filebase = fileprefix + '.%d' + file_extension
     numfiles = 2
   elif filepath[2].is_file():
     # exact filename was passed - will cause error if >1 files, otherwise fine
     filebase = fileprefix
     numfiles = 1
   else:
+    print(filepath[0],filepath[1],filepath[2])
     raise FileNotFoundError(fileprefix)
   return filebase, numfiles
 
@@ -373,19 +375,19 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
   prefix_prog = fileprefix_subhalo_prog%(snapshot_number,snapshot_number)
 
   filepath = [
-    Path(prefix_sub + '.hdf5'),
-    Path(prefix_sub + '.0.hdf5'),
+    Path(prefix_sub + file_extension),
+    Path(prefix_sub + '.0' + file_extension),
     ]
 
   if filepath[0].is_file():
-    filebase_sub = prefix_sub + '.hdf5'
-    filebase_desc = prefix_desc + '.hdf5'
-    filebase_prog = prefix_prog + '.hdf5'
+    filebase_sub = prefix_sub + file_extension
+    filebase_desc = prefix_desc + file_extension
+    filebase_prog = prefix_prog + file_extension
     numfiles = 1
   elif filepath[1].is_file():
-    filebase_sub = prefix_sub + '.%d.hdf5'
-    filebase_desc = prefix_desc + '.%d.hdf5'
-    filebase_prog = prefix_prog + '.%d.hdf5'
+    filebase_sub = prefix_sub + '.%d' + file_extension
+    filebase_desc = prefix_desc + '.%d' + file_extension
+    filebase_prog = prefix_prog + '.%d' + file_extension
     numfiles = 2
   
   prog, desc, pos, vel, mass, ID, header = -1, -1, np.zeros(3), np.zeros(3), 0., {}, {}
@@ -883,15 +885,15 @@ def list_snapshots():
     prefix = fileprefix_snapshot%(snapshot_number,snapshot_number)
 
     filepath = [
-      Path(prefix + '.hdf5'),
-      Path(prefix + '.0.hdf5'),
+      Path(prefix + file_extension),
+      Path(prefix + '.0' + file_extension),
       ]
 
     if filepath[0].is_file():
-      filename = prefix + '.hdf5'
+      filename = prefix + file_extension
       numfiles = 1
     elif filepath[1].is_file():
-      filename = prefix + '.0.hdf5'
+      filename = prefix + '.0' + file_extension
       numfiles = 2
     else:
       break
@@ -1109,7 +1111,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
 
   return tuple(ret)
 
-def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':False,'lentype':False,'group':False},group_opts={},sodef='Mean200'):
+def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':False,'lentype':False,'group':False},group_opts={},sodef='Mean200',verbose=True):
 
   '''
   
@@ -1191,7 +1193,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
 
 
     with h5py.File(filename, 'r') as f:
-      print('reading %s'%filename)
+      if verbose: print('reading %s'%filename)
 
       header = dict(f['Header'].attrs)
 
