@@ -370,9 +370,9 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
     
   '''
 
-  prefix_sub = fileprefix_subhalo%(snapshot_number,snapshot_number)
-  prefix_desc = fileprefix_subhalo_desc%(snapshot_number,snapshot_number)
-  prefix_prog = fileprefix_subhalo_prog%(snapshot_number,snapshot_number)
+  prefix_sub = fileprefix_subhalo%tuple([snapshot_number]*fileprefix_subhalo.count('%'))
+  prefix_desc = fileprefix_subhalo_desc%tuple([snapshot_number]*fileprefix_subhalo_desc.count('%'))
+  prefix_prog = fileprefix_subhalo_prog%tuple([snapshot_number]*fileprefix_subhalo_prog.count('%'))
 
   filepath = [
     Path(prefix_sub + file_extension),
@@ -1137,6 +1137,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
 
     radius: half-mass radius, shape (NH,)
 
+    veldisp: velocity dispersion, shape (NH,)
+
     lentype: particle count array (by type), shape (NH,Ntype)
     
     group: subhalo's group, shape (NH,)
@@ -1172,6 +1174,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
   if opts.get('vel'): vel = []
   if opts.get('mass'): mass = []
   if opts.get('radius'): radius = []
+  if opts.get('veldisp'): veldisp = []
   if opts.get('lentype'): lentype = []
   if opts.get('group'): group = []
   if opts.get('rank'): rank = []
@@ -1210,6 +1213,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
           mass += [np.array(f['Subhalo/SubhaloMass'])]
         if opts.get('radius'):
           radius += [np.array(f['Subhalo/SubhaloHalfmassRad'])]
+        if opts.get('veldisp'):
+          veldisp += [np.array(f['Subhalo/SubhaloVelDisp'])]
         if opts.get('lentype'):
           lentype += [np.array(f['Subhalo/SubhaloLenType'])]
         if opts.get('group'):
@@ -1247,6 +1252,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
   if opts.get('vel'): ret += [np.concatenate(vel,axis=0)]
   if opts.get('mass'): ret += [np.concatenate(mass)]
   if opts.get('radius'): ret += [np.concatenate(radius)]
+  if opts.get('veldisp'): ret += [np.concatenate(veldisp)]
   if opts.get('lentype'): ret += [np.concatenate(lentype,axis=0)]
   if opts.get('group'): ret += [np.concatenate(group)]
   if opts.get('rank'): ret += [np.concatenate(rank)]
@@ -1343,6 +1349,8 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
 
     vel: particle types (shape ID_list.shape + (3,))
     
+    mass: particle types (shape ID_list.shape)
+
     index: particle indices within snapshot (same shape as ID_list)
 
     type: particle types (same shape as ID_list)
@@ -1360,7 +1368,8 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
   index = np.zeros(np.shape(ID_list),dtype=np.int64)-1
   if opts.get('pos'): pos = np.zeros(np.shape(ID_list) + (3,)) * np.nan
   if opts.get('vel'): vel = np.zeros(np.shape(ID_list) + (3,)) * np.nan
-  if opts.get('type'):  ptype = np.zeros(np.shape(ID_list),dtype=np.int32)-1
+  if opts.get('mass'): mass = np.zeros(np.shape(ID_list)) * np.nan
+  if opts.get('type'): ptype = np.zeros(np.shape(ID_list),dtype=np.int32)-1
   header = None
   while fileinst < numfiles:
 
@@ -1410,6 +1419,8 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
               pos[in_idx] = np.array(f['PartType%d/Coordinates'%typ][iread])[sort_idx[test]]
             if opts.get('vel'):
               vel[in_idx] = np.array(f['PartType%d/Velocities'%typ][iread])[sort_idx[test]] * np.sqrt(ScaleFactor)
+            if opts.get('mass'):
+              mass[in_idx] = np.array(f['PartType%d/Masses'%typ][iread])[sort_idx[test]]
             if opts.get('type'):
               ptype[in_idx] = typ
 
@@ -1422,6 +1433,7 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
   ret = []
   if opts.get('pos'): ret += [pos]
   if opts.get('vel'): ret += [vel]
+  if opts.get('mass'): ret += [mass]
   if opts.get('index'): ret += [index]
   if opts.get('type'): ret += [ptype]
   ret += [header]
