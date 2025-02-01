@@ -907,7 +907,7 @@ def list_snapshots():
 
   return names, headers
 
-def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False,'acc':False,'pot':False},chunksize=1048576,verbose=True):
+def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False,'acc':False,'pot':False,'density':False,'energy':False},chunksize=1048576,verbose=True):
 
   '''
   
@@ -955,6 +955,10 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     acc: acceleration, shape (NP,3)
 
     pot: potential, shape (NP,)
+
+    density: density of gas, shape (NP,)
+
+    energy: internal energy of gas, shape (NP,)
     
     header: a dict with header info, use list(header) to see the fields
   
@@ -984,6 +988,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
   if opts.get('type'): ptype = []
   if opts.get('acc'): acc = []
   if opts.get('pot'): pot = []
+  if opts.get('density'): density = []
+  if opts.get('energy'): energy = []
   header = None
   while fileinst < numfiles:
 
@@ -1090,6 +1096,10 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
               acc += [np.array(f['PartType%d/Acceleration'%typ][iread])[idx] * np.sqrt(ScaleFactor)]
             if opts.get('pot'):
               pot += [np.array(f['PartType%d/Potential'%typ][iread])[idx]]
+            if opts.get('density'):
+              density += [np.array(f['PartType%d/Density'%typ][iread])[idx]]
+            if opts.get('energy'):
+              energy += [np.array(f['PartType%d/InternalEnergy'%typ][iread])[idx]]
 
           Nleft -= Nc
           i0 += Nc
@@ -1107,6 +1117,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
   if opts.get('type'): ret += [np.concatenate(ptype)] if len(ptype) > 0 else [np.empty(0,dtype=np.uint32)]
   if opts.get('acc'): ret += [np.concatenate(acc,axis=0)] if len(acc) > 0 else [np.empty((0,3))]
   if opts.get('pot'): ret += [np.concatenate(pot)] if len(pot) > 0 else [np.empty(0)]
+  if opts.get('density'): ret += [np.concatenate(density)] if len(density) > 0 else [np.empty(0)]
+  if opts.get('energy'): ret += [np.concatenate(energy)] if len(energy) > 0 else [np.empty(0)]
   ret += [header]
 
   return tuple(ret)
