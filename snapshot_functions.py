@@ -1157,6 +1157,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
 
     group_somass: SO mass
   
+    group_soradius: SO radius
+
     group_lentype: 
 
     group_firstsub: 
@@ -1184,6 +1186,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
   if group_opts.get('vel'): group_vel = []
   if group_opts.get('mass'): group_mass = []
   if group_opts.get('somass'): group_somass = []
+  if group_opts.get('soradius'): group_soradius = []
   if group_opts.get('lentype'): group_lentype = []
   if group_opts.get('firstsub'): group_firstsub = []
   if group_opts.get('numsubs'): group_numsubs = []
@@ -1236,6 +1239,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
           group_mass += [np.array(f['Group/GroupMass'])]
         if group_opts.get('somass'):
           group_somass += [np.array(f['Group/Group_M_%s'%sodef])]
+        if group_opts.get('soradius'):
+          group_soradius += [np.array(f['Group/Group_R_%s'%sodef])]
         if group_opts.get('lentype'):
           group_lentype += [np.array(f['Group/GroupLenType'])]
         if group_opts.get('firstsub'):
@@ -1262,6 +1267,7 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
   if group_opts.get('vel'): ret += [np.concatenate(group_vel,axis=0)]
   if group_opts.get('mass'): ret += [np.concatenate(group_mass)]
   if group_opts.get('somass'): ret += [np.concatenate(group_somass)]
+  if group_opts.get('soradius'): ret += [np.concatenate(group_soradius)]
   if group_opts.get('lentype'): ret += [np.concatenate(group_lentype,axis=0)]
   if group_opts.get('firstsub'): ret += [np.concatenate(group_firstsub)]
   if group_opts.get('numsubs'): ret += [np.concatenate(group_numsubs)]
