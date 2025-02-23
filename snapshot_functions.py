@@ -377,6 +377,7 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
   filepath = [
     Path(prefix_sub + file_extension),
     Path(prefix_sub + '.0' + file_extension),
+    Path(prefix_sub.split('/')[-1] + file_extension),
     ]
 
   if filepath[0].is_file():
@@ -389,6 +390,11 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
     filebase_desc = prefix_desc + '.%d' + file_extension
     filebase_prog = prefix_prog + '.%d' + file_extension
     numfiles = 2
+  elif filepath[2].is_file():
+    filebase_sub = prefix_sub.split('/')[-1] + file_extension
+    filebase_desc = prefix_desc.split('/')[-1] + file_extension
+    filebase_prog = prefix_prog.split('/')[-1] + file_extension
+    numfiles = 1
   
   prog, desc, pos, vel, mass, ID, header = -1, -1, np.zeros(3), np.zeros(3), 0., {}, {}
 
@@ -887,18 +893,24 @@ def list_snapshots():
     filepath = [
       Path(prefix + file_extension),
       Path(prefix + '.0' + file_extension),
+      Path(prefix.split('/')[-1] + file_extension),
       ]
 
     if filepath[0].is_file():
       filename = prefix + file_extension
       numfiles = 1
+      names += [prefix]
     elif filepath[1].is_file():
       filename = prefix + '.0' + file_extension
       numfiles = 2
+      names += [prefix]
+    elif filepath[2].is_file():
+      filename = prefix.split('/')[-1] + file_extension
+      numfiles = 1
+      names += [prefix.split('/')[-1]]
     else:
       break
 
-    names += [prefix]
 
     with h5py.File(filename, 'r') as f:
       headers += [dict(f['Header'].attrs)]
