@@ -69,6 +69,8 @@ def run(argv):
   ssmin,ssmax = [int(x) for x in argv[1].split(',')]
 
   _data = np.loadtxt(argv[2])
+  if len(_data.shape) == 1:
+    _data.shape = (1,-1)
   _ss = _data[:,0]
   _t  = _data[:,1]
   _x  = _data[:,2]
