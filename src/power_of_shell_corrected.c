@@ -43,7 +43,7 @@ int read_shot(char *filename) {
 }
 
 int compute_pkshot() {
-  printf("computing sum(m^2) with window between %lg and %lg\n",R-T,R+T);
+  printf("computing sum(m^2) with window between %lg and %lg\n",R/T,R*T);
   pkshot = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
     double x_ = (x + .5)/n - .5;
@@ -172,7 +172,7 @@ int clean() {
 }
 
 int window() {
-  printf("windowing density field between %lg and %lg\n",R-T,R+T);
+  printf("windowing density field between %lg and %lg\n",R/T,R*T);
   double wsum = 0.;
   double rhosum = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
