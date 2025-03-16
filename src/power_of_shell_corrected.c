@@ -10,6 +10,7 @@
 static ptrdiff_t n, n3, npad, n3pad, n1d;
 static float *rho, *shot;
 static double *k, *pk, R, T, pkshot, rhomean;
+static double R1, R2, logR2R1;
 
 double sinc(double x) {
   if(x > 0.1) return sin(x)/x;
@@ -17,9 +18,9 @@ double sinc(double x) {
 }
 
 double windowfun(double r) {
-  double x = (r-R)/T;
-  if(x>1. || x<-1.) return 0.;
-  return (1 - cos(M_PI*(1.+x)))/(2.*sqrt(3*M_PI*T)*r);
+  if(r<R1 || r>R2) return 0.;
+  double s = sin(M_PI*log(r/R1)/logR2R1);
+  return s*s/sqrt(1.5*M_PI*logR2R1*r*r*r);
 }
 
 int read_shot(char *filename) {
@@ -42,7 +43,7 @@ int read_shot(char *filename) {
 }
 
 int compute_pkshot() {
-  printf("computing sum(m^2) with window between %lg and %lg\n",R-T,R+T);
+  printf("computing sum(m^2) with window between %lg and %lg\n",R/T,R*T);
   pkshot = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
     double x_ = (x + .5)/n - .5;
@@ -171,7 +172,7 @@ int clean() {
 }
 
 int window() {
-  printf("windowing density field between %lg and %lg\n",R-T,R+T);
+  printf("windowing density field between %lg and %lg\n",R/T,R*T);
   double wsum = 0.;
   double rhosum = 0.;
   for(ptrdiff_t x = 0; x < n; x++) {
@@ -201,6 +202,9 @@ int main(int argc, char **argv)
 
   R = atof(argv[3]);
   T = atof(argv[4]);
+  R1 = R/T;
+  R2 = R*T;
+  logR2R1 = log(R2/R1);
 
   get_pkshot(argv[2]);
 
