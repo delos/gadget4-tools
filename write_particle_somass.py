@@ -46,15 +46,19 @@ def run(argv):
     ID, header = read_particles_filter(prefix,center=X[i],radius=R[i],opts={'ID':True,})
 
     if i == 0:
-      Mmax = np.zeros(header['NumPart_Total'][1])
-      Mmin = np.full(header['NumPart_Total'][1],np.inf)
+      NP = header['NumPart_Total'][1]
+      Mmax = np.zeros(NP)
+      Mmin = np.full(NP,np.inf)
     Mmax[ID-1] = np.maximum(Mmax[ID-1],M[i])
     Mmin[ID-1] = np.minimum(Mmin[ID-1],M[i])
 
   Mmax[Mmax==0.] = np.nan
   Mmin[np.isinf(Mmin)] = np.nan
 
-  np.savez('particles_somass_%d.npz'%ss,Mmax=Mmax,Mmin=Mmin)
+  ID = np.arange(1,NP+1)
+  ix = np.isfinite(Mmax)&np.isfinite(Mmin)
+
+  np.savez('particles_somass_%d.npz'%ss,ID=ID[ix].astype(np.uint32),Mmax=Mmax[ix].astype(np.float32),Mmin=Mmin[ix].astype(np.float32))
 
 if __name__ == '__main__':
   from sys import argv
