@@ -55,9 +55,10 @@ def run(argv):
 
   data = np.load(argv[1])
   ID = data['ID']
-  out = {'D':D,'ID':ID,}
+  out = {'a':a,'D':D,'box':box,'density':density,'ID':ID,}
   for Mstr in ['Mmax','Mmin']:
     M = data[Mstr]
+    out[Mstr] = M
     irM = np.interp(np.log(M),np.log(M_list),np.arange(len(M_list),dtype=np.float32),left=np.nan,right=np.nan)
     irM0 = np.floor(irM).astype(np.int32)
     irM1 = irM0+1
@@ -73,7 +74,7 @@ def run(argv):
         file = 'T%d%d_%s'%(*a_b_from_ab[i],rstr)
         GridSize = int((os.stat(file).st_size//4)**(1./3)+.5)
         with open(file,'rb') as f:
-          field = np.fromfile(f,count=GridSize**3,dtype=np.float32)
+          field = np.fromfile(f,count=GridSize**3,dtype=np.float32) * D
           #field.shape = (GridSize,GridSize,GridSize)
         #a_ic = ((ID-ID0)//GridSize**2)%GridSize
         #b_ic = ((ID-ID0)//GridSize)%GridSize
