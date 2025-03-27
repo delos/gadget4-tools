@@ -58,7 +58,7 @@ def run(argv):
   ID = np.arange(1,NP+1)
   ix = np.isfinite(Mmax)&np.isfinite(Mmin)
 
-  np.savez('particles_somass_%d.npz'%ss,ID=ID[ix].astype(np.uint32),Mmax=Mmax[ix].astype(np.float32),Mmin=Mmin[ix].astype(np.float32))
+  np.savez('particles_somass_%03d.npz'%ss,ID=ID[ix].astype(np.uint32),Mmax=Mmax[ix].astype(np.float32),Mmin=Mmin[ix].astype(np.float32))
 
 if __name__ == '__main__':
   from sys import argv
