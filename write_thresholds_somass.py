@@ -33,7 +33,8 @@ def run(argv):
   rstr_list = []
   for i in range(6):
     Tlist = glob('T%d%d_%d_*'%(*a_b_from_ab[i],window))
-    rstr_list = np.unique(np.concatenate((rstr_list,[x[4:] for x in Tlist])))
+    rstr_list = np.unique(np.concatenate((rstr_list,[x.split('_')[-1] for x in Tlist])))
+  print(rstr_list)
 
   header = read_header(argv[2])
   box = header['BoxSize']
