@@ -21,6 +21,7 @@ static float *delta, *delta0, *output;
 static fftwf_complex *delta_c, *delta0_c;
 
 // results
+static int window;
 static float *rbin;
 static int nr;
 
@@ -140,9 +141,13 @@ double ipow(double base, int exp) {
   }
   return result;
 }
-double tophat(double y) {
+double W1(double y) {
   if(y<=0.3) return 1. - y*y/10. + ipow(y,4)/280. - ipow(y,6)/15120. + ipow(y,8)/1330560. - ipow(y,10)/172972800.;
   else return 3./ipow(y,3)*(sin(y)-y*cos(y));
+}
+double W2(double y) {
+  if(y<=0.3) return 1. - y*y/14. + ipow(y,4)/504. - ipow(y,6)/33264. + ipow(y,8)/3459456. - ipow(y,10)/518918400.;
+  else return 15./ipow(y,5)*((3.-y*y)*sin(y)-3.*y*cos(y));
 }
 
 void do_r2c() {
@@ -173,7 +178,10 @@ void do_c2r_tidal(int a,int b,double r) {
         idx = k+(n/2+1)*(j+n*i);
         double kmag = sqrt(kv[0]*kv[0]+kv[1]*kv[1]+kv[2]*kv[2]);
         double mult;
-        if(kmag>0) mult = tophat(kmag*DK*r) * kv[a] * kv[b] / (kmag * kmag);
+        if(kmag>0) {
+          if(window==1) mult = W1(kmag*DK*r) * kv[a] * kv[b] / (kmag * kmag);
+          if(window==2) mult = W2(kmag*DK*r) * kv[a] * kv[b] / (kmag * kmag);
+        }
         else mult = 1;
         delta_c[idx][0] = mult*delta0_c[idx][0];
         delta_c[idx][1] = mult*delta0_c[idx][1];
@@ -195,7 +203,7 @@ void get_tidal(int ab) {
 		for(k=0;k<n;k++)
 		  output[k+n*(j+n*i)] = delta[k+npad*(j+n*i)];
     if(!my_id) printf("  computing T_{%d,%d}(%g)\n",a,b,rbin[ir]);
-    sprintf(name,"T%d%d_%.7f",a,b,rbin[ir]);
+    sprintf(name,"T%d%d_%d_%.7f",a,b,window,rbin[ir]);
     write_grid(name,output,local_n0,local_0_start,n);
   }
 }
@@ -223,11 +231,15 @@ int main(int argc, char **argv) {
   if(!my_id) {for(i=0; i<argc; i++) {printf(argv[i]);printf(" ");}printf("\n");}
   if(argc<2) {
     if(!my_id) {
-      printf("usage: exe <grid file>\n");
+      printf("usage: exe <grid file> [window=1]\n");
     }
     MPI_Finalize();
     return 1;
   }
+
+  window = 1;
+  if(argc>2) window = atoi(argv[2]);
+  printf("window=%d\n",window);
 
   // get grid size
   struct stat st;
