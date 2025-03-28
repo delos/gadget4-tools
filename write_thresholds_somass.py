@@ -27,6 +27,8 @@ def run(argv):
     return 1
   window = int(argv[4]) if len(argv) > 4 else 1
   N0 = float(argv[5]) if len(argv) > 5 else 500.
+  print(' '.join(argv))
+  print('window=%d, N_min=%.0f'%(window,N0))
 
   rstr_list = []
   for i in range(6):
