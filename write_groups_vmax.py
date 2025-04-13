@@ -76,9 +76,9 @@ def run(argv):
 
       mcum = np.cumsum(m_)
       #vcirc = np.sqrt(G*mcum/(r_+params['SofteningComovingClass1']))
-      vcirc = np.sqrt(G*mcum[:-1]/r_[1:])
+      vcirc = np.sqrt(G*(mcum[:-1]+0.5*m_[1:])/r_[1:]) # particle at r counts half
       imax = np.argmax(vcirc)
-      rmax[i] = r_[1:][imax]
+      rmax[i] = r_[1:][imax] * (-1)**(imax==len(vcirc)-1) # (-) if we have a lower limit only
       vmax[i] = vcirc[imax]
 
   if outfile.endswith('.npz'):
