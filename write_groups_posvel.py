@@ -12,7 +12,7 @@ def run(argv):
 
   # read halos
   pos, vel, header = read_subhalos(argv[1],opts={},group_opts={'pos':True,'vel':True})
-  NG = mass.size
+  NG = pos.shape[0]
 
   print('%d groups'%NG)
 
