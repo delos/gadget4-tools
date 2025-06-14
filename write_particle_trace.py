@@ -17,7 +17,10 @@ def run(argv):
   with open('trace_%d.txt'%(ID),'wt') as f:
     f.write('# snapshot, a, x, y, z\n')
     for ss in range(ssmin,ssmax+1):
-      pos, header = read_particles_filter(fileprefix_snapshot%(ss,ss),ID_list=[ID],opts={'pos':True})
+      try:
+        pos, header = read_particles_filter(fileprefix_snapshot%(ss,ss),ID_list=[ID],opts={'pos':True})
+      except:
+        pos, header = read_particles_filter((fileprefix_snapshot%(ss,ss)).split('/')[-1],ID_list=[ID],opts={'pos':True})
       f.write('%d %.6e %.6e %.6e %.6e\n'%(ss, header['Time'], pos[0,0], pos[0,1], pos[0,2]))
 
   print(pos.tolist())

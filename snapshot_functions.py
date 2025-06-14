@@ -1416,6 +1416,7 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
 
       header = dict(f['Header'].attrs)
 
+      MassTable = header['MassTable']
       ScaleFactor = 1./(1+header['Redshift'])
       NP = header['NumPart_ThisFile']
       NPtot = header['NumPart_Total']
@@ -1450,7 +1451,10 @@ def particles_by_ID(fileprefix, ID_list, opts, chunksize=1048576):
             if opts.get('vel'):
               vel[in_idx] = np.array(f['PartType%d/Velocities'%typ][iread])[sort_idx[test]] * np.sqrt(ScaleFactor)
             if opts.get('mass'):
-              mass[in_idx] = np.array(f['PartType%d/Masses'%typ][iread])[sort_idx[test]]
+              if MassTable[typ] == 0.:
+                mass[in_idx] = np.array(f['PartType%d/Masses'%typ][iread])[sort_idx[test]]
+              else:
+                mass[in_idx] = MassTable[typ]
             if opts.get('type'):
               ptype[in_idx] = typ
 
