@@ -18,7 +18,7 @@ def run(argv):
   for typ in range(6):
     ID, header = read_particles_filter(fileprefix_snapshot%(ss,ss),type_list=[typ],opts={'ID':True},part_range=(bins[0],bins[-1]))
     IDs += [ID]
-  print(IDs)
+
   ss = ss0 + 1
 
   X = np.zeros((np.shape(bins)[0]-1,3))
