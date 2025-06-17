@@ -1065,7 +1065,7 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
               idx &= (-halfwidth<=pos_[:,2])&(pos_[:,2]<=halfwidth)
 
           if part_range is not None: # filter by position in file
-            idx &= part_range[0][typ] < np.arange(i00[typ],i00[typ]+Nc)
+            idx &= part_range[0][typ] <= np.arange(i00[typ],i00[typ]+Nc)
             idx &= np.arange(i00[typ],i00[typ]+Nc) < part_range[1][typ]
 
           if ID_list is not None: # filter by ID
