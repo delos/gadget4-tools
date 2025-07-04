@@ -19,7 +19,7 @@ def get_groups_subhalos(index, group_length, group_firstsub, group_numsubs, subh
 def run(argv):
   
   if len(argv) < 4:
-    print('python script.py <snapshot #> <numbered peaks file> <grid N> [downscale peak-file = 1]')
+    print('python script.py <snapshot #> <numbered peaks file> <grid N> [downscale peak-file = 1] [task number,number of tasks]')
     return 1
 
   ss = int(argv[1])
@@ -41,14 +41,29 @@ def run(argv):
     pass
   print('  range (%d,%d), (%d,%d), (%d,%d)'%(peaki.min(),peaki.max(),peakj.min(),peakj.max(),peakk.min(),peakk.max()))
 
-  IDs = np.zeros((npeak,7),dtype=np.uint32)
-  IDs[:,0] = (peaki*N + peakj)*N + peakk
-  IDs[:,1] = (((peaki+1)%N)*N + peakj)*N + peakk
-  IDs[:,2] = (((peaki-1)%N)*N + peakj)*N + peakk
-  IDs[:,3] = (peaki*N + (peakj+1)%N)*N + peakk
-  IDs[:,4] = (peaki*N + (peakj-1)%N)*N + peakk
-  IDs[:,5] = (peaki*N + peakj)*N + (peakk+1)%N
-  IDs[:,6] = (peaki*N + peakj)*N + (peakk-1)%N
+  try:
+    itask,ntask = [int(a) for a in argv[5].split(',')]
+    print('task %d/%d'%(itask+1,ntask))
+    local_npeak_base = npeak // ntask
+    local_npeak_remainder = npeak % ntask
+    local_npeak_0 = itask*local_npeak_base + min(itask,local_npeak_remainder)
+    local_npeak_1 = local_npeak_0 + local_npeak_base + (1 if itask < local_npeak_remainder else 0)
+    local_npeak = local_npeak_1 - local_npeak_0
+    print('  %d indices in [%d,%d)'%(local_npeak,local_npeak_0,local_npeak_1))
+    ix = slice(local_npeak_0,local_npeak_1)
+  except:
+    itask,ntask = None,None
+    ix = slice(None)
+    local_npeak = npeak
+
+  IDs = np.zeros((local_npeak,7),dtype=np.uint32)
+  IDs[:,0] = (peaki[ix]*N + peakj[ix])*N + peakk[ix]
+  IDs[:,1] = (((peaki[ix]+1)%N)*N + peakj[ix])*N + peakk[ix]
+  IDs[:,2] = (((peaki[ix]-1)%N)*N + peakj[ix])*N + peakk[ix]
+  IDs[:,3] = (peaki[ix]*N + (peakj[ix]+1)%N)*N + peakk[ix]
+  IDs[:,4] = (peaki[ix]*N + (peakj[ix]-1)%N)*N + peakk[ix]
+  IDs[:,5] = (peaki[ix]*N + peakj[ix])*N + (peakk[ix]+1)%N
+  IDs[:,6] = (peaki[ix]*N + peakj[ix])*N + (peakk[ix]-1)%N
   IDs += 1 # NGENIC convention, IDs start at 1
 
   print('  %d IDs (%d unique)'%(IDs.size,np.unique(IDs).size))
@@ -68,8 +83,12 @@ def run(argv):
     group, subhalo = get_groups_subhalos(_index[idx], _grplen[:,typ], _grpfirstsub, _grpnumsubs, _sublen[:,typ])
     groups[idx] = group
     subhalos[idx] = subhalo
-
-  np.savez('gridpeak_halos_%03d.npz'%ss,snapshot=ss, peaks=peakn, IDs=IDs, groups=groups, subhalos=subhalos, positions=positions)
+  
+  if itask is None:
+    outname = 'gridpeak_halos_%03d.npz'%ss
+  else:
+    outname = 'gridpeak_halos_%03d_%d_%d.npz'%(ss,ntask,itask)
+  np.savez(outname, snapshot=ss, peaks=peakn[ix], IDs=IDs, groups=groups, subhalos=subhalos, positions=positions)
 
   return
 

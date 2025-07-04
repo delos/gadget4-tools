@@ -63,7 +63,9 @@ def run(argv):
   data = np.load(argv[1])
   ID = data['ID']
   out = {'a':a,'D':D,'box':box,'rho':density,'m':mpar,}
-  for Mstr in ['Mmax','Mmin']:
+  Mstrs = [l for l in list(data) if l[0]=='M']
+  print('mass fields: ' + ','.join(Mstrs))
+  for Mstr in Mstrs:
     M = data[Mstr]
     i0 = M > M0
     out['ID_%s'%Mstr] = ID[i0]
