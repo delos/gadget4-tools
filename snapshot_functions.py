@@ -1024,6 +1024,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
       NPtot = header['NumPart_Total']
       numfiles = header['NumFilesPerSnapshot']
       BoxSize = header['BoxSize']
+      if 'PERIODIC' not in dict(f['Config'].attrs):
+        BoxSize = 0.
 
       if fileinst == 0:
         if type_list is None:
