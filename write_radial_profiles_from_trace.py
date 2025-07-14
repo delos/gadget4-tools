@@ -1,6 +1,6 @@
 import numpy as np
 from numba import njit
-from snapshot_functions import list_snapshots, read_header, read_particles_filter
+from snapshot_functions import list_snapshots, read_header, read_particles_filter, read_subhalos, fileprefix_subhalo
 
 @njit
 def profile(pos,vel,mass,rmin,rmax,nr):
@@ -63,12 +63,13 @@ def profile(pos,vel,mass,rmin,rmax,nr):
 def run(argv):
   
   if len(argv) < 4:
-    print('python script.py <snapshot min,max> <trace-file> <rmin,rmax,nr> [types=-1] [out-prefix]')
+    print('python script.py <snapshot min,max> <trace-file[,s or g]> <rmin,rmax,nr> [types=-1] [out-prefix]')
     return 1
 
   ssmin,ssmax = [int(x) for x in argv[1].split(',')]
 
-  _data = np.loadtxt(argv[2])
+  trace = argv[2].split(',')
+  _data = np.loadtxt(trace[0])
   if len(_data.shape) == 1:
     _data.shape = (1,-1)
   _ss = _data[:,0]
@@ -79,7 +80,21 @@ def run(argv):
   _vx = _data[:,5]
   _vy = _data[:,6]
   _vz = _data[:,7]
-  print('using trace file')
+  _grp = _data[:,10].astype(int)
+  _sub = _data[:,11].astype(int)
+  print('using trace file %s'%trace[0])
+
+  ssmax = min(ssmax,_ss[-1]) if ssmax >= 0 else _ss[-1]
+  ssmin = max(ssmin,_ss[0]) if ssmin >= 0 else _ss[0]
+  
+  if len(trace)>1 and trace[1].lower().startswith('s'):
+    print('  considering subhalo particles only')
+    halo_flag = 's'
+  elif len(trace)>1 and trace[1].lower().startswith('g'):
+    print('  considering group particles only')
+    halo_flag = 'g'
+  else:
+    halo_flag = False
   
   rb = argv[3].split(',')
   rmin = float(rb[0])
@@ -94,7 +109,6 @@ def run(argv):
     print('particle types ' + ', '.join([str(x) for x in types]))
   except:
     types = None
-
   
   try: outbase = argv[5]
   except: outbase = 'profiles'
@@ -129,7 +143,25 @@ def run(argv):
         np.interp(time,_t,_vz),
         ])
 
-    pos, vel, mass, header = read_particles_filter(filename,center=center,radius=rmax,type_list=types,opts={'mass':True,'pos':True,'vel':True})
+    if halo_flag:
+      filesub = fileprefix_subhalo%(snapshot_number,snapshot_number)
+      if len(filename.split('/')) == 1 or filename.split('/')[-2] != 'groups_%03d'%snapshot_number:
+        filesub = filesub.split('/')[-1]
+        slen, sgrp, srnk, glen, g1sb, header = read_subhalos(filesub,opts={'lentype':True,'group':True,'rank':True},group_opts={'lentype':True,'firstsub':True})
+        if halo_flag == 's':
+          sub = _sub[_ss==snapshot_number][0]
+          grp = sgrp[sub]
+          p0 = np.sum(glen[:grp],axis=0) + np.sum(slen[g1sb[grp]:sub],axis=0)
+          p1 = p0 + slen[sub]
+        elif halo_flag == 'g':
+          grp = _grp[_ss==snapshot_number][0]
+          p0 = np.sum(glen[:grp],axis=0)
+          p1 = p0 + glen[grp]
+      part_range = [p0,p1]
+    else:
+      part_range = None
+
+    pos, vel, mass, header = read_particles_filter(filename,center=center,radius=rmax,type_list=types,part_range=part_range,opts={'mass':True,'pos':True,'vel':True})
 
     vel -= center_v.reshape((1,3))
 
