@@ -32,7 +32,7 @@ def run(argv):
     direc = ''
 
   with open('trace_%d.txt'%(ID),'wt') as f:
-    f.write('# snapshot, a, x, y, z\n')
+    f.write('# snapshot, a, x, y, z, vx, vy, vz, Msub, sub\n')
     for ss in range(ssmin,ssmax+1):
 
       try:
@@ -47,14 +47,12 @@ def run(argv):
           opts={'pos':True,'vel':True,'mass':True,'lentype':True},group_opts={'lentype':True,'firstsub':True,'numsubs':True})
 
       _typ = _type[0]
-      group, subhalo = get_groups_subhalos(_index, _grplen[:,_typ], _grpfirstsub, _grpnumsubs, _sublen[:,typ])
+      group, subhalo = get_groups_subhalos(_index, _grplen[:,_typ], _grpfirstsub, _grpnumsubs, _sublen[:,_typ])
       subM = _subM[subhalo]
       subx = _subx[subhalo]
       subv = _subv[subhalo]
       
-      f.write('%d %.6e %.6e %.6e %.6e  %.6e %.6e %.6e %.6e %d\n'%(ss, header['Time'], subx[0,0], subx[0,1], subx[0,2], subv[0,0], subv[0,1], subv[0,2], subM[0], subhalo[0]))
-
-  print(pos.tolist())
+      f.write('%d %.6e  %.6e %.6e %.6e  %.6e %.6e %.6e  %.6e %d\n'%(ss, header['Time'], subx[0,0], subx[0,1], subx[0,2], subv[0,0], subv[0,1], subv[0,2], subM[0], subhalo[0]))
 
   return 0
 
