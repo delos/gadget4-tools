@@ -74,9 +74,13 @@ def run(argv):
   ssname = fileprefix_snapshot%(ss,ss)
   grpname = fileprefix_subhalo%(ss,ss)
 
-  positions, _index, _type, header = particles_by_ID(ssname, IDs, opts={'pos':True,'index':True,'type':True})
-
-  _sublen, _grplen, _grpfirstsub, _grpnumsubs, _ = read_subhalos(grpname,opts={'lentype':True},group_opts={'lentype':True,'firstsub':True,'numsubs':True})
+  try:
+      positions, _index, _type, header = particles_by_ID(ssname, IDs, opts={'pos':True,'index':True,'type':True})
+      _sublen, _grplen, _grpfirstsub, _grpnumsubs, _ = read_subhalos(grpname,opts={'lentype':True},group_opts={'lentype':True,'firstsub':True,'numsubs':True})
+  except FileNotFoundError:
+      positions, _index, _type, header = particles_by_ID(ssname.split('/')[-1], IDs, opts={'pos':True,'index':True,'type':True})
+      _sublen, _grplen, _grpfirstsub, _grpnumsubs, _ = read_subhalos(grpname.split('/')[-1],opts={'lentype':True},group_opts={'lentype':True,'firstsub':True,'numsubs':True})
+    
 
   for typ in np.unique(_type):
     idx = (_type==typ)
