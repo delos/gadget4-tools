@@ -40,18 +40,85 @@ def center(ID,GridSize):
 
   return np.array([x,y,z]).T, np.array([xc,yc,zc]) # (N,3), (3,)
 
-def sphere(ID, GridSize):
+def minimum_enclosing_ellipsoid(x, y, z, tol=1e-7, max_iter=1000):
+    """
+    Compute the minimum volume enclosing ellipsoid of 3D points.
+
+    Parameters
+    ----------
+    x, y, z : array-like, shape (N,)
+        Coordinates of points
+    tol : float
+        Convergence tolerance
+    max_iter : int
+        Maximum iterations
+
+    Returns
+    -------
+    center : ndarray, shape (3,)
+        Center of ellipsoid
+    A : ndarray, shape (3, 3)
+        Ellipsoid matrix such that (p-center)^T A (p-center) <= 1
+    """
+    P = np.vstack([x, y, z]).T  # (N, 3)
+    N, d = P.shape
+
+    # Homogeneous coordinates
+    Q = np.vstack([P.T, np.ones(N)])  # (4, N)
+
+    # Initial weights
+    u = np.ones(N) / N
+
+    for _ in range(max_iter):
+        # Compute matrix X
+        X = Q @ np.diag(u) @ Q.T
+        X_inv = np.linalg.inv(X)
+
+        # Compute Mahalanobis distances
+        M = np.einsum('ij,jk,ki->i', Q.T, X_inv, Q)
+
+        j = np.argmax(M)
+        max_M = M[j]
+
+        step = (max_M - d - 1) / ((d + 1) * (max_M - 1))
+        new_u = (1 - step) * u
+        new_u[j] += step
+
+        if np.linalg.norm(new_u - u) < tol:
+            u = new_u
+            break
+
+        u = new_u
+
+    # Ellipsoid center
+    center = P.T @ u
+
+    # Ellipsoid matrix
+    Pu = P - center
+    cov = Pu.T @ np.diag(u) @ Pu
+    A = np.linalg.inv(cov) / d
+
+    return center, A # Ellipsoid matrix such that (p-center)^T A (p-center) <= 1
+
+def sphere(ID, GridSize,tol=0.01):
+
+  # center particles about origin and find enclosing sphere
   x, xc = center(ID, GridSize)
   r = np.sum(x**2,axis=1)**0.5
   R = r.max()
-  print('Lagrangian radius = %.1f cells'%R)
+  print('Lagrangian sphere: %.1f cells radius about (%d,%d,%d)'%(R,xc[0],xc[1],xc[2]))
+
+  # find enclosing ellipsiod
+  c, A = minimum_enclosing_ellipsoid(x[:,0],x[:,1],x[:,2])
+
+  # select cells
   Rint = int(np.ceil(R))
   grid = np.arange(-Rint,Rint+1)
-  X, Y, Z = np.meshgrid(grid, grid, grid, indexing='ij')
-  X, Y, Z = X.flatten(), Y.flatten(), Z.flatten()
-  mask = X*X + Y*Y + Z*Z <= R*R
-  X, Y, Z = X[mask]+xc[0], Y[mask]+xc[1], Z[mask]+xc[2]
-  return ((X*GridSize + Y)*GridSize + Z + 1).astype(np.uint32)
+  X = np.array(np.meshgrid(grid,grid,grid,indexing='ij')).reshape((3,-1)).T # (N,3)
+  mask = (X[:,None,:]-c[None,None])@A[None]@(X[:,:,None]-c[None,:,None]) <= (1.+tol)**2
+  mask = mask[:,0,0]
+  Xe = (X[mask] + xc[None])%GridSize
+  return ((Xe[:,0]*GridSize + Xe[:,1])*GridSize + Xe[:,2] + 1).astype(np.uint32)
 
 def run(argv):
   
@@ -80,11 +147,17 @@ def run(argv):
   print('group %d has %d particles'%(grp,ID.size))
 
   GridSize = int(argv[3])
-  ID = sphere(ID,GridSize)
 
-  print('%d particles in Lagrangian sphere'%(ID.size))
+  tol = 0.000
+  while True:
+    tol += 0.001
+    ID_enclosing = sphere(ID,GridSize,tol)
+    print('%d particles in Lagrangian ellipsoid'%(ID_enclosing.size))
+    if np.all(np.isin(ID,ID_enclosing)):
+      break
+    print('  not entirely in Lagrangian ellipsoid, try again')
 
-  ID.tofile(outfile)
+  ID_enclosing.tofile(outfile)
 
   return
 
