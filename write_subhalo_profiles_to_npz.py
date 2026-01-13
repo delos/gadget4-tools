@@ -146,7 +146,7 @@ def run(argv):
       iwrite += 1
     part_index = np.sum(glen[:ig+1],axis=0)
 
-  np.savez(outname,r=rlist,rho=rholist,ru=rulist,m=mlist,N=ctlist,M=hmasslist,R=hradlist,X=hposlist,V=hvellist,a=1./(1+header['Redshift']))
+  np.savez(outname,sub=idxh,r=rlist,rho=rholist,ru=rulist,m=mlist,N=ctlist,M=hmasslist,R=hradlist,X=hposlist,V=hvellist,a=1./(1+header['Redshift']))
 
 if __name__ == '__main__':
   from sys import argv
