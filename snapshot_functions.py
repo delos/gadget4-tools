@@ -168,7 +168,8 @@ def fof_to_halos(fileprefix,opts={'pos':True,'vel':True,'mass':True}):
  
       if header['Ngroups_ThisFile'] > 0:
         if opts.get('pos'): pos += [np.array(f['Group/GroupPos'])]
-        if opts.get('vel'): vel += [np.array(f['Group/GroupVel']) * np.sqrt(ScaleFactor)]
+        # if opts.get('vel'): vel += [np.array(f['Group/GroupVel']) * np.sqrt(ScaleFactor)]
+        if opts.get('vel'): vel += [np.array(f['Group/GroupVel'])]
         if opts.get('mass'): mass += [np.array(f['Group/GroupMass'])]
 
     fileinst += 1
@@ -426,7 +427,8 @@ def subhalo_tracing_data(snapshot_number,subhalo_number):
 
         # get some data for the subhalo
         pos = np.array(f['Subhalo/SubhaloPos'])[index]
-        vel = np.array(f['Subhalo/SubhaloVel'])[index] * np.sqrt(ScaleFactor)
+        # vel = np.array(f['Subhalo/SubhaloVel'])[index] * np.sqrt(ScaleFactor)
+        vel = np.array(f['Subhalo/SubhaloVel'])[index]
         ID = {'group':np.array(f['Subhalo/SubhaloGroupNr'])[index],
           'subhalo':subhalo_number,
           'particle':np.array(f['Subhalo/SubhaloIDMostbound'])[index]}
@@ -796,7 +798,8 @@ def group_data(fileprefix,group,size_definition='Mean200',opts={'pos':True,'vel'
         index = group - hinst
 
         pos = np.array(f['Group/GroupPos'])[index]
-        vel = np.array(f['Group/GroupVel'])[index] * np.sqrt(ScaleFactor)
+        # vel = np.array(f['Group/GroupVel'])[index] * np.sqrt(ScaleFactor)
+        vel = np.array(f['Group/GroupVel'])[index]
         radius = np.array(f['Group/Group_R_'+size_definition])[index]
         mass = np.array(f['Group/Group_M_'+size_definition])[index]
 
@@ -919,7 +922,7 @@ def list_snapshots():
 
   return names, headers
 
-def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False,'acc':False,'pot':False,'density':False,'energy':False},chunksize=1048576,verbose=True):
+def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, halfwidth=None, ID_list=None, type_list=None, part_range=None, reduce=None, opts={'pos':True,'vel':True,'ID':False,'mass':True,'index':False,'type':False,'acc':False,'pot':False,'density':False,'energy':False},chunksize=1048576,verbose=True):
 
   '''
   
@@ -944,6 +947,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
     part_range: only read particles whose positions within the files lie within range.
       Useful with group-ordered snapshots.
       Format: ([minType0,minType1,...], [maxType0+1,maxType1+1,...])
+
+    reduce: factor (<1) by which to reduce the particle count.
 
     opts: which fields to read and return
 
@@ -1082,7 +1087,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
             idx_ID = np.isin(ID_,ID_list,assume_unique=True)
             ID_list = np.array(ID_list)[np.isin(ID_list,ID_[idx_ID],assume_unique=True,invert=True)]
             idx[idx] &= idx_ID
-
+          if reduce is not None:
+            idx &= (np.random.rand(idx.size) < reduce)
           nread = np.sum(idx)
           nreadTot += nread
           if nread > 0:
@@ -1098,6 +1104,8 @@ def read_particles_filter(fileprefix, center=None, rotation=None, radius=None, h
                 mass_ = np.array(f['PartType%d/Masses'%typ][iread])
               else:
                 mass_ = np.full(Nc,MassTable[typ])
+              if reduce is not None:
+                mass_ /= reduce
               mass += [mass_[idx]]
             if opts.get('ID'):
               if ID_list is None:
@@ -1239,7 +1247,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
         if opts.get('pos'):
           pos += [np.array(f['Subhalo/SubhaloPos'])]
         if opts.get('vel'):
-          vel += [np.array(f['Subhalo/SubhaloVel']) * np.sqrt(ScaleFactor)]
+          # vel += [np.array(f['Subhalo/SubhaloVel']) * np.sqrt(ScaleFactor)]
+          vel += [np.array(f['Subhalo/SubhaloVel'])]
         if opts.get('mass'):
           mass += [np.array(f['Subhalo/SubhaloMass'])]
         if opts.get('radius'):
@@ -1262,7 +1271,8 @@ def read_subhalos(fileprefix, opts={'pos':True,'vel':True,'mass':True,'radius':F
         if group_opts.get('pos'):
           group_pos += [np.array(f['Group/GroupPos'])]
         if group_opts.get('vel'):
-          group_vel += [np.array(f['Group/GroupVel']) * np.sqrt(ScaleFactor)]
+          # group_vel += [np.array(f['Group/GroupVel']) * np.sqrt(ScaleFactor)]
+          group_vel += [np.array(f['Group/GroupVel'])]
         if group_opts.get('mass'):
           group_mass += [np.array(f['Group/GroupMass'])]
         if group_opts.get('somass'):

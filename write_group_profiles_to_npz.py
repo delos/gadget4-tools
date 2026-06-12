@@ -67,18 +67,16 @@ def run(argv):
     if outname[-4:] != '.npz':
       outname += '.npz'
   except:
-    outname = argv[1] + '_subprof.npz'
+    outname = argv[1] + '_grpprof.npz'
 
   try: count = int(argv[6])
   except: count = None
 
   # read halos
-  hpos, hvel, hmass, hrad, hlen, glen, g1sub, gNsub, header = read_subhalos(argv[2],
-    opts={'pos':True,'vel':True,'mass':True,'radius':True,'lentype':True,},
-    group_opts={'lentype':True,'firstsub':True,'numsubs':True},)
-  NH = hlen.shape[0]
-  NT = hlen.shape[1]
-  NG = glen.shape[0]
+  hpos, hmass, hrad, header = read_subhalos(argv[2],
+    opts={},group_opts={'pos':True,'somass':True,'soradius':True,},
+    )
+  NH = hmass.shape[0]
 
   if count is not None and count < NH:
     idxh = np.argsort(hmass)[::-1][:count]
@@ -93,34 +91,15 @@ def run(argv):
   hposlist = np.zeros((nwrite,3),dtype=np.float32)
   hvellist = np.zeros((nwrite,3),dtype=np.float32)
 
-  part_index = np.zeros(NT,dtype=int)
-  ih = 0
-  iwrite = 0
-  for ig in range(NG): # loop over groups
-    if iwrite == nwrite:
-      break
-    for i in range(gNsub[ig]): # loop over halos in group
-      if iwrite == nwrite:
-        break
-      ih = g1sub[ig] + i
-      l = hlen[ih]
-      print('subhalo %d [mass %.3g], %d of group %d'%(ih,hmass[ih],i,ig,))
-      #print('  ' + ' '.join(['%d'%x for x in part_index]))
-      #print('  ' + ' '.join(['%d'%x for x in l]))
-      if ih not in idxh:
-        part_index += l
-        continue
-        
+  for i in range(NH): # loop over groups
+    if i in idxh:
+      print('group %d [mass %.3g]'%(i,hmass[i],))
       # read particles
-      c = hpos[ih]
       try:
-        pos, mass, header = read_particles_filter(argv[1],center=c,part_range=(part_index,part_index+l),type_list=types,opts={'mass':True,'pos':True})
+        pos, mass, header = read_particles_filter(argv[1],center=hpos[i],radius=hrad[i],type_list=types,opts={'mass':True,'pos':True})
       except:
         print('no particles; skip')
-        part_index += l
-        iwrite += 1
         continue
-      part_index += l
 
       # get profile
       r, rho, ru, m, ct = profile(pos,mass,rmin,rmax,nr)
@@ -132,21 +111,17 @@ def run(argv):
         mlist = np.zeros((nwrite,nr),dtype=np.float32)
         ctlist = np.zeros((nwrite,nr),dtype=np.int32)
 
-      idx = np.where(idxh == ih)[0][0]
+      idx = np.where(idxh == i)[0][0]
 
       rholist[idx] = rho
       mlist[idx] = m
       ctlist[idx] = ct
       
-      hmasslist[idx] = hmass[ih]
-      hradlist[idx] = hrad[ih]
-      hposlist[idx] = hpos[ih]
-      hvellist[idx] = hvel[ih]
+      hmasslist[idx] = hmass[i]
+      hradlist[idx] = hrad[i]
+      hposlist[idx] = hpos[i]
 
-      iwrite += 1
-    part_index = np.sum(glen[:ig+1],axis=0)
-
-  np.savez(outname,sub=idxh,r=rlist,rho=rholist,ru=rulist,m=mlist,N=ctlist,M=hmasslist,R=hradlist,X=hposlist,V=hvellist,a=1./(1+header['Redshift']))
+  np.savez(outname,r=rlist,rho=rholist,ru=rulist,m=mlist,N=ctlist,M=hmasslist,R=hradlist,X=hposlist,a=1./(1+header['Redshift']))
 
 if __name__ == '__main__':
   from sys import argv
