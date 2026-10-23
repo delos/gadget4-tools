@@ -41,7 +41,7 @@ def make_positions(BoxSize,GridSize,IDh,glass):
     xr = cell % GridSize**2;
     y = xr // GridSize;
     z = xr % GridSize;
-    if cell == IDh[ih]:
+    if ih < IDh.size and cell == IDh[ih]:
       if ih*Ng>=Nh:
         raise Exception('high-res array overrun')
       ph[ih*Ng:(ih+1)*Ng,0] = glass[0] + x
